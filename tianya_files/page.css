@@ -1,0 +1,583 @@
+.qr_code_pc_outer {
+        display: none;
+        position: fixed;
+        left: 0px;
+        top: 20px;
+        width: 100%;
+    }
+
+    @media screen and (min-width: 1024px) {
+        .qr_code_pc_outer {
+            display: block;
+        }
+    }
+
+    .qr_code_pc_inner {
+        position: relative;
+        width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .qr_code_pc {
+        position: absolute;
+        right: -160px;
+        top: 0;
+        padding: 10px;
+        border: 1px solid #d9dadc;
+        background-color: #fff;
+    }
+
+    @media only screen and (min-width: 1024px) {
+        #_cl-page-preview {
+            width: 600px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+    }
+
+    .div_disabled {
+        background: #ddd;
+        border: 1px solid #ddd;
+    }
+
+    html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+    a, abbr, acronym, address, big, cite, code, del, dfn, em, font, img, ins, kbd, q, s, samp, small,
+    strike, strong, sub, sup, tt, var, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, caption {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        outline: 0;
+    }
+
+    a {
+        color: #108ee9;
+        text-decoration: none;
+    }
+
+    p {
+        word-break: break-word;
+    }
+
+    .empty-img {
+        display: none;
+        opacity: 0;
+    }
+
+    #clSubmitForm, #clGetCodeBtn {
+        cursor: pointer;
+    }
+
+    #_cl_messageArea {
+        text-align: center;
+        font-size: 24px;
+        padding: 20px;
+    }
+
+    #frame_wp {
+        box-sizing: border-box;
+        width: 580px;
+        min-height: 100vh;
+        margin: 0 auto;
+        max-width: 100%;
+        box-shadow: rgb(178, 192, 191) 0 24px 59px;
+    }
+
+    .hide-date-edit-field::-webkit-datetime-edit-month-field,
+    .hide-date-edit-field::-webkit-datetime-edit-day-field,
+    .hide-date-edit-field::-webkit-datetime-edit-year-field,
+    .hide-date-edit-field::-webkit-datetime-edit-hour-field,
+    .hide-date-edit-field::-webkit-datetime-edit-minute-field,
+    .hide-date-edit-field::-webkit-datetime-edit-ampm-field,
+    .hide-date-edit-field::-webkit-datetime-edit-text {
+        display: none;
+    }
+
+    .form-submitted-show-module + .module {
+        display: none;
+    }
+
+    .formGhost, .cl-tpl-form-toolbar, .cl-tpl-item-toolbar {
+        display: none;
+    }
+
+    img {
+        max-width: 100%;
+        vertical-align: middle;
+    }
+
+    .cl-tpl-item-divider {
+        border-style: solid;
+        box-sizing: border-box;
+    }
+
+    .cl-tpl-item-content p {
+        word-wrap: break-word;
+        -webkit-margin-after: 0px;
+        -webkit-margin-before: 0px;
+    }
+
+    body {
+        margin: 0px;
+        overflow-x: hidden;
+        padding: 0;
+        font-family: "Microsoft Yahei", Helvetica, sans-serif;
+    }
+
+    form input {
+        font-size: 18px;
+    }
+
+    #_cl-page-preview {
+        min-height: 100vh !important;
+    }
+    .display-none{
+        display: none !important;
+    }
+    .cash-card, .coupon-claim-after, .coupon-claim-message, .coupon-claim-message {
+        display: none;
+    }
+
+    /*//卡券样式*/
+    .intocenter_width {
+        width: 100%;
+        padding: 10px 0;
+        word-break: break-all;
+        background: #fff;
+    }
+
+    .intocenter_maxwidth {
+        max-width: 414px;
+        margin: 0 auto;
+    }
+
+    .intocenter_main {
+        width: 90%;
+        margin: 0 auto;
+        background: #fff;
+        -moz-border-radius: 6px 8px 8px 6px;
+        -webkit-border-radius: 6px 8px 8px 6px;
+        border-radius: 6px 8px 8px 6px;
+        -webkit-box-shadow: #999 0px 0px 5px;
+        -moz-box-shadow: #999 0px 0px 5px;
+        box-shadow: #999 0px 0px 5px;
+    }
+
+    .intocenter_con {
+        width: 80%;
+        margin: 0 auto;
+        padding: 30px 0;
+        text-align: center;
+    }
+
+    .intocenter_text {
+        font-size: 16px;
+        color: #333;
+        margin-bottom: 20px;
+        line-height: 30px;
+    }
+
+    .intocenter_button {
+        background: #bc0001;
+        width: 70%;
+        font-size: 18px;
+        line-height: 34px;
+        margin: 0 auto;
+        -moz-border-radius: 30px;
+        -webkit-border-radius: 30px;
+        border-radius: 30px;
+    }
+
+    .intocenter_button a {
+        color: #fff;
+        text-decoration: none;
+    }
+
+    /*消息提示框样式*/
+    .coupon-claim-message {
+        position: fixed;
+        display: inline-block;
+        top: 20%;
+        right: 0;
+        left: 0;
+        width: 80%;
+        padding: 10px;
+        margin: auto;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.75);
+        -moz-box-shadow: 0px 0px 13px rgba(0, 0, 0, 0.65);
+        -webkit-box-shadow: 0px 0px 13px rgba(0, 0, 0, 0.65);
+        box-shadow: 0px 0px 13px rgba(0, 0, 0, 0.65);
+        border-radius: 10px;
+    }
+
+    .message-ctn {
+        width: 100%;
+        margin-top: 25px;
+    }
+
+    .message-btn,
+    .message-success {
+        width: 80%;
+        color: white;
+        background-color: rgb(230, 78, 97);
+        border-radius: 10px;
+        margin: 0 auto;
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .message-success {
+        margin-top: -10px;
+        background-color: #3cca3f;
+    }
+
+    .filter {
+        filter: blur(3px);
+        -moz-filter: blur(3px);
+        -ms-filter: blur(3px);
+        -o-filter: blur(3px);
+        -webkit-filter: blur(3px);
+    }
+
+    /*支付页面*/
+    .wechatpay {
+        display: none;
+    }
+
+    .payment {
+        width: 100%;
+        background: #f4f4f4;
+        height: 100%;
+    }
+
+    .payment_con {
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .payment_infor {
+        background: #fff;
+        padding: 15px 0;
+        margin-bottom: 10px;
+    }
+
+    .payment_text {
+        font-size: 18px;
+        line-height: 30px;
+        color: #666;
+        width: 85%;
+        margin: 0 auto;
+    }
+
+    .payment_price {
+        text-align: center;
+        color: #c0141c;
+        font-size: 24px;
+        line-height: 30px;
+    }
+
+    .payment_price strong {
+        font-size: 50px;
+    }
+
+    .payment_button {
+        width: 85%;
+        margin: 0 auto;
+    }
+
+    .payment_name {
+        border: 0;
+        border: solid 1px #ccc;
+        -moz-border-radius: 40px;
+        -webkit-border-radius: 40px;
+        border-radius: 40px;
+        box-sizing: border-box;
+        height: 40px;
+        width: 100%;
+        margin-bottom: 25px;
+        text-indent: 12px;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .payment_paybutton {
+        -moz-border-radius: 40px;
+        -webkit-border-radius: 40px;
+        border-radius: 40px;
+        box-sizing: border-box;
+        height: 50px;
+        width: 100%;
+        background: #c0141c;
+        color: #fff;
+        font-size: 16px;
+        appearance: button;
+        -moz-appearance: button;
+        -webkit-appearance: button;
+        box-sizing: border-box;
+        outline: none;
+        border: none;
+    }
+
+    .payment_paybutton:disabled {
+        background: #ccc;
+    }
+
+    /*支付成功*/
+    .success {
+        width: 100%;
+        /*background: #f4f4f4;*/
+        overflow: hidden;
+    }
+    .pay-success-image{
+        display: none;
+    }
+
+    .success_con {
+        padding: 15px 0;
+        background: #fff;
+        display: -webkit-box;
+        -webkit-box-align: center;
+        -webkit-box-pack: center;
+        margin-bottom: 10px;
+        border-bottom: 8px solid #ddd;
+    }
+
+    .success_infor {
+        -webkit-box-flex: 0;
+    }
+
+    .success_text {
+        font-size: 18px;
+        line-height: 30px;
+        color: #666;
+        width: 85%;
+        margin: 0 auto;
+    }
+
+    .success_tips {
+        color: #3cca3f;
+        text-indent: 40px;
+        font-size: 24px;
+        line-height: 30px;
+        background: url(//cdn.convertlab.com/image/897c5b33bdb74301a9459f97d7d14af4) left center no-repeat;
+        background-size: 20%;
+    }
+    div[data-pagetype]{
+        display:none;
+    }
+    div[data-pagetype="page"]{
+        display: block;
+    }
+    .Wrights_no{
+        padding:20px 0;
+    }
+    .Wrights_no p{
+        display:inline;
+    }
+    .Wrights_no_width{
+        background:#fff;
+        border-radius:10px;
+        padding:40px 20px;
+        width:90%;
+        margin:0 auto;
+        box-sizing:border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        -o-box-sizing: border-box;
+        -ms-box-sizing: border-box;
+        box-shadow:0px 0px 20px rgba(0,0,0,0.19);
+        -webkit-box-shadow:0px 0px 20px rgba(0,0,0,0.19);
+        -moz-box-shadow:0px 0px 20px rgba(0,0,0,0.19);
+    }
+    .Wrights_no_Con{
+        width:90%;
+        margin:0 auto;
+    }
+    .Wrights_no_Ico{
+        width:50px;
+        height:50px;
+        background:#ee9859;
+        margin:0 auto;
+        margin-bottom:10px;
+    }
+    .Wrights_no_Ico div img{
+        width:100%;
+        height:100%;
+    }
+    .Wrights_no_Tips{
+        text-align:center;
+        font-size:16px;
+        color:#333;
+        line-height:1.5;
+        margin-bottom:10px;
+    }
+    @media screen and (max-width: 375px) {
+        .Wrights_no_Code{
+            font-size:20px;
+        }
+        .Wrights_no_Ico{
+            width:45px;
+            height:45px;
+        }
+    }
+    @media screen and (max-width: 320px) {
+        .Wrights_no_Ico{
+            width:40px;
+            height:40px;
+        }
+        .Wrights_no_width{
+            padding:30px 10px;
+        }
+        .Wrights_no_Tips{
+            font-size:14px;
+        }
+    }
+
+    /* 请求错误信息提示 */
+    .err-request-info{
+        height: 25px;
+        width: 100%;
+        line-height: 25px;
+        font-size: 14px;
+        color: rgb(203, 82, 81);
+        background-color: #aaa;
+        text-align: center;
+        margin: 0 auto;
+        position: fixed;
+        top: 0;
+    }
+
+    /* 预留手机号弹窗 */
+    .registerfinancial {
+        background: rgba(0, 0, 0, 0.6);
+        position: fixed;
+        height: 100%;
+        width: 100%;
+        left: 0;
+        top: 0;
+        z-index: 2000;
+    }
+
+    .registerbodyfinancial {
+        width: 77%;
+        margin-left: 11.5%;
+        margin-top: 14%;
+        position: relative;
+        background: url(https://www.gtja.com/f/CDN1/microPage/201905/09/016801_1557389472640.png) no-repeat center center;
+        padding-top: 112%;
+        background-size: 100% 100%;
+        font-size: 10px;
+    }
+
+    .registerbodyfinancial .sub {
+        overflow: hidden;
+        position: absolute;
+        top: 38.6%;
+        width: 81.6%;
+        left: 9.2%;
+    }
+
+    .registerbodyfinancial .close {
+        position: absolute;
+        width: 8.6%;
+        padding-top: 8.6%;
+        left: 45.75%;
+        top: 110%;
+        cursor: pointer;
+        background: url(https://www.gtja.com/f/CDN1/microPage/201905/09/016801_1557389477251.png) no-repeat center center;
+        background-size: 100% 100%;
+    }
+
+    .registerbodyfinancial .phoneline {
+        border-bottom: 1px solid #e3e3e3;
+    }
+
+    .registerbodyfinancial .phoneline input {
+        border: 0 none;
+        width: 100%;
+        height: 1.4em;
+        line-height: 1.4em;
+        font-size: 2.3em;
+        margin-top: 1em;
+        margin-bottom: 1em;
+    }
+
+    .registerbodyfinancial .piccodeline {
+        border-bottom: 1px solid #e3e3e3;
+        width: 100%;
+    }
+
+    .registerbodyfinancial .piccodeline input {
+        border: 0 none;
+        width: 50%;
+        height: 1.4em;
+        line-height: 1.4em;
+        font-size: 2.3em;
+        margin-top: 1em;
+        margin-bottom: 1em;
+    }
+
+    .registerbodyfinancial .piccodeline img {
+        float: right;
+        width: 30%;
+        margin-top: 1em;
+    }
+
+    .registerbodyfinancial .msgcodeline {
+        border-bottom: 1px solid #e3e3e3;
+    }
+
+    .registerbodyfinancial .msgcodeline input {
+        border: 0 none;
+        width: 50%;
+        height: 1.4em;
+        line-height: 1.4em;
+        font-size: 2.3em;
+        margin-top: 1em;
+        margin-bottom: 1em;
+        box-sizing: border-box;
+    }
+
+    .registerbodyfinancial .msgcodeline .text {
+        width: 50%;
+        height: 2em;
+        margin-top: 0.7em;
+        line-height: 2em;
+        font-size: 2.3em;
+        float: right;
+        border-left: 1px solid #e3e3e3;
+        box-sizing: border-box;
+        color: #9a9a9a;
+        text-align: right;
+        padding-right: 5%;
+        cursor: pointer;
+    }
+
+    .registerbodyfinancial .confirmbtn {
+        width: 93%;
+        margin-left: 3.5%;
+        margin-top: 10%;
+    }
+
+    .registerbodyfinancial .error {
+        position: absolute;
+        font-size: 2.0em;
+        line-height: 1.6em;
+        height: 1.6em;
+    }
+
+    /* 微信遮罩层 */
+    .zhezhaofinancial {
+        background: rgba(0, 0, 0, 0.7);
+        position: fixed;
+        height: 100%;
+        width: 100%;
+        left: 0;
+        top: 0;
+        z-index: 2000;
+    }
+
+    .zhezhaofinancial img {
+        width: 100%;
+    }

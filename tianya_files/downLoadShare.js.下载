@@ -1,0 +1,584 @@
+	
+		var gtja_ctx = "";
+		var shareId = 'null';
+		var basePath = 'http://fy.gtja.com:80/';
+		var msg = '';
+		var showFlag = true;
+
+
+		function getParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            var r = window.location.search.substr(1).match(reg);
+            if (r) return decodeURI(r[2]);
+            return null; //返回参数值
+        }
+        var tgCode=getParam("tgCode");
+        var activityCode=getParam("activityCode");
+        var tgflag=getParam("tgflag");
+		var tgKind=getParam("tgKind");
+        var shareId=getParam("shareId");
+		
+		var dialog = {
+			open : function(option,fun){//打开弹出框事件
+				var option = {//参数设置
+					id : option.id || false, //设置ID[默认可以没有ID，页面中有多个弹出框时，必须设置ID]
+					content : option.content || false, //设置弹出框内容[默认可以没有内容]
+					cancelShadowCloseEvent : option.cancelShadowCloseEvent || false, //取消关闭事件[默认开启]
+					hideCloseBtn : option.hideCloseBtn || false, //隐藏关闭按钮[默认显示]
+					hideShadow : option.hideShadow || false //隐藏阴影层[默认显示]
+				}
+				var art = $('<aside '+(option.id ? 'id="'+option.id+'"' : '')+' class="dialog g-dn"><table class="dialog-content"><tr><td><div class="dialog-frame"><div class="dialog-frame-cont">'+ (option.content ? option.content : '') +'</div>'+ (!option.hideCloseBtn ? ('<div onclick="dialog.close('+ (option.id ? ('\'#'+option.id+'\'') : '') +')" class="close"></div>') : '') +'</div></td></tr></table>'+(!option.hideShadow ? ('<div '+ (!option.cancelShadowCloseEvent ? ('onclick="dialog.close('+ (option.id ? ('\'#'+option.id+'\'') : '') +')"') : '')+' class="dialog-shadow"></div>') : '')+'</aside>');
+				// console.log(art)
+				$("body").append(art);
+				$("aside.dialog").fadeIn();
+				if(fun){ fun() };
+			},
+			close : function(art,fun){//关闭事件
+				$(".foot-Explain").css("display","none");
+				var art = art || ".dialog";
+				$(art).remove();
+				if(fun){ fun() };
+			}
+		}
+
+		window.addEventListener("orientationchange", function(){//监测横屏
+			if (window.orientation == 90 || window.orientation == -90) {
+				alert("请使用竖屏浏览，以获得更好的操作体验！");
+				return false;
+			}else if(window.orientation == 0 || window.orientation == 180){
+				window.location.reload();
+			}
+		}, false);
+
+		function is_weixn(){//判断是否微信
+			var ua = navigator.userAgent.toLowerCase();
+			if(ua.match(/MicroMessenger/i)=="micromessenger") {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		/**
+		* 判断是否在qq浏览器中打开
+		* @returns {Boolean}
+		*/
+		function isQQ(){  
+		   var ua = navigator.userAgent.toLowerCase();  
+		   if(ua.match(/QQ/i)=="qq") {  
+		       return true;  
+		   } else {  
+		       return false;  
+		   }  
+		}
+
+		function onOffShadow(obj){//遮罩层开关
+			var $this = $(obj);
+			if($this.hasClass('g-dn')){
+				$this.removeClass('g-dn');
+			}else{
+				$this.addClass('g-dn');
+			}
+		};
+
+		//获取终端的相关信息 
+		var Terminal = {
+		  // 辨别移动终端类型 
+		  platform : function(){
+		      var u = navigator.userAgent, app = navigator.appVersion;
+		     // alert("u="+u+",app="+app);
+		      return {
+		          // android终端或者uc浏览器 
+		          android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1,
+		          // 是否为iPhone或者QQHD浏览器 
+		          iPhone: u.indexOf('iPhone') > -1|| u.indexOf('iPad') > -1 ,
+		          // 是否是通过微信的扫一扫打开的 
+		          weChat: u.indexOf('MicroMessenger') > -1
+		      };
+		  }()
+		};
+
+
+		function isNumber4(str) {
+			var reg = /\d{4}$/;
+			if(reg.test(str)) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		//4位数字或者字母
+		function isVerifyCode(str) {
+			var reg = /^[A-Za-z0-9]{4}$/;
+			if(reg.test(str)) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		function checkPicCode(verifyCode){
+			if(!verifyCode){
+				return ("*请输入图片验证码");
+			}else{
+				if(!isVerifyCode(verifyCode)){
+					return ("*请输入正确的图片验证码");
+				}else{
+					return "";
+				}
+			}
+		}
+
+		function downLoad(){
+				$("#Register").removeClass("none");
+			    refreshCaptcha();
+				
+				var ownMobileFromCookie = jQuery.cookie("ownMobile");
+				if(ownMobileFromCookie != null && ownMobileFromCookie != ""){
+					$("#mobile").val(ownMobileFromCookie);
+					$("#isHideYzm1").hide();
+					$("#imgCode").hide();
+					$("#confirmbtn").addClass("active");
+				}else{
+					$("#isHideYzm1").show();
+					$("#imgCode").show();
+				}	
+		}
+		$(function(){
+			if(msg){
+		        alert(msg);
+		        isModal = true;
+		//      $('.share-shadow').css({'display':'block'});
+		        $('.share-shadow').removeClass('g-dn');
+		        $("#zzImg").attr("src",'');
+		        $('.share-shadow').attr('onclick','');
+		        return;
+		    }
+		    
+		    if(Terminal.platform.iPhone){  //IOS保存推广人员信息到cookie,有效期7天   
+				var junhapptgset = 'tgCode='+ tgCode + ';shareId=' + shareId + ';activityCode=' + activityCode + ';tgKind=' + tgKind;
+				jQuery.cookie('junhapptgset', junhapptgset, {expires: 7, path: '/', domain: '', secure:''});
+			}else if(Terminal.platform.android){
+				jQuery.ajax({
+					"type": "post",
+					"url":"/m/yyzTg.do?method=saveAppRequestParameters",
+					"data": {shareId:shareId,activityCode:activityCode,tgKind:tgKind,tgflag:tgflag,tgCode:tgCode},
+					// "data": {tgCode:tgCode,shareId:shareId,activityCode:activityCode,tgKind:tgKind,ymfgresult:ymfgresult},
+					"async": false,
+					"dataType":"json",
+					"success":function(data, desc){
+						if(data.msg == ""){}else{}
+					}
+				});
+			}
+			$(document).on('click','#confirmbtn',function() { 
+				var mobile=$("#mobile").val();
+				if($(this).hasClass("active")){
+					//如果是发送验证码那边验证过已经注册过的手机，点击直接下载
+					if(isOldCus){
+						var ownMobileFromCookie = jQuery.cookie("ownMobile");
+						if(ownMobileFromCookie != mobile){
+							jQuery.cookie('ownMobile', mobile, {expires: 30, path: '/', domain: '', secure:''});
+						}
+						closeRegister();
+						window.location.href = 'http://yyz.gtja.com/dl';
+					}else{
+						var isSendMsgCode = "Y";
+						var isSendVerifyCode = "Y";
+						var imgCode=$("#imgCodeId").val();
+						var messageCode = $("#verifyCode").val();
+						var errorMsg = checkMobile(mobile);
+						var ownMobileFromCookie = jQuery.cookie("ownMobile");
+						if(mobile == ownMobileFromCookie){//不需要输入验证码
+							isSendMsgCode = "N";
+							isSendVerifyCode = "N";
+						}else{
+							isSendMsgCode = "Y";
+							isSendVerifyCode = "Y";
+							$("#isHideYzm1").show();
+							$("#imgCode").show();
+						}
+						if(errorMsg != ""){
+							$("#errorMsg").text(errorMsg);
+						}else if(isSendMsgCode == "Y" && (imgCode == "" || imgCode.length !=4)){
+							$("#errorMsg").text("*请输入正确的图片验证码");
+						}else if(isSendVerifyCode == "Y"&&messageCode == ""){
+							$("#errorMsg").text("*请输入短信验证码");
+						}else{
+							jQuery.ajax({
+								"type": "post",
+								"url":"/m/yyzTg.do?method=checkMessageCodeReg",
+								"data": {mobile:mobile, messageCode:messageCode,shareId:shareId,isSendVerifyCode:isSendVerifyCode,activityCode:activityCode,tgKind:tgKind,tgflag:tgflag,tgCode:tgCode},
+								"async": false,
+								"dataType":"json",
+								"success":function(data, desc){
+									if(data.msg == ""){//验证短信验证码成功，跳转到下载客户端页面
+										//验证短信验证码成功之后 ，将手机号存入Cookie
+										var ownMobileFromCookie = jQuery.cookie("ownMobile");
+										if(ownMobileFromCookie != mobile){
+											jQuery.cookie('ownMobile', mobile, {expires: 30, path: '/', domain: '', secure:''});
+										}
+										closeRegister();
+										 window.location.href = 'http://yyz.gtja.com/dl';
+										//downloadPopup();
+									}else{
+										if(data.msg == '该客户国泰君安君弘注册记录已存在'){
+											var ownMobileFromCookie = jQuery.cookie("ownMobile");
+											if(ownMobileFromCookie != mobile){
+												jQuery.cookie('ownMobile', mobile, {expires: 30, path: '/', domain: '', secure:''});
+											}
+											closeRegister();
+											window.location.href = 'http://yyz.gtja.com/dl';
+											//downloadPopup();
+										}else{
+											$("#errorMsg").text(data.msg);
+											$("#isHideYzm1").show();
+											$("#imgCode").show();
+										}
+									}
+								}
+							});
+						}
+					}
+				}
+					
+			});
+			var isOldCus=false;
+			$(document).on('click','#yzm',function() { 
+				if($(this).hasClass("active")){
+					var mobile=$("#mobile").val();
+			 		var imgCode=$("#imgCodeId").val();
+			 		var errorMsg = checkMobile(mobile);
+			 		
+			 		if(errorMsg == ""){
+			 			errorMsg = checkPicCode(imgCode);
+			 		}
+			 		if(errorMsg != ""){
+						$("#errorMsg").text(errorMsg);
+			 		}else{
+						var mobile = $("#mobile").val();
+						var imgCode = $("#imgCodeId").val();
+						jQuery.ajax({
+								"type": "post",
+								"url": "/m/yyzTg.do?method=sendMessageCodeReg",
+								"data": {mobile:mobile,shareId:shareId,imgCode:imgCode,activityCode:activityCode,tgflag:tgflag,tgCode:tgCode},
+								"dataType":"json",
+								"success":function(data, desc){
+									if(data.msg == ""){//发送验证码成功
+										$("#yzm").removeClass("active");
+						 				var $this = $("#yzm"),
+						 				count = 60,
+						 				timer = setInterval(function(){
+						 					$($this).html("重新发送"+count+"s");
+						 					count--;
+						 					if(count<=0){
+						 						clearInterval(timer);
+						 						$this.html("发送验证码");
+						 						count = 60;
+									    		var mobile=$('#mobile').val();
+										    	var errorMsg = checkMobile(mobile); 
+										    	if(errorMsg){
+										 			$("#yzm").removeClass("active");
+										 		}else{
+										 			$("#yzm").addClass("active");
+										 		}
+						 					}
+						 				},1000);
+						 				
+						 				$("#errorMsg").text("");
+						 				isOldCus=false;
+									}else{
+										refreshCaptcha();
+										if(data.isExistYyzData == '1'){//已经预留过手机号码，弹出提示
+											$("#errorMsg").text("您已经预留过手机号码，是国泰君安君弘老用户啦，请点击“确定”直接下载君弘并登陆！");
+											isOldCus=true;
+										}else{
+											$("#errorMsg").text(data.msg);
+											isOldCus=false;
+										}
+									}
+								}
+							});		
+			 		}
+
+				}
+		 	});
+		 	$(document).on('click','#RegisterClose',function() { 
+		 		closeRegister();
+		 	});
+			$(document).on('click','.registerbody .ruleline .first',function() { 
+				if($(".registerbody .ruleline .second").hasClass("none")){
+					$(".registerbody .ruleline .second").removeClass("none");
+					$(".registerbody .ruleline .first").addClass("active");
+				}else{
+					$(".registerbody .ruleline .second").addClass("none");
+					$(".registerbody .ruleline .first").removeClass("active");
+				}
+		 	});
+			
+	    	$(document).on('input propertychange','#mobile',function() { 
+	    		isOldCus=false;
+	    		var mobile=$("#mobile").val();
+	    		var imgCode=$("#imgCodeId").val();
+	    		var verifyCode=$("#verifyCode").val();
+		    	var errorMsg = checkMobile(mobile); 
+		    	if(errorMsg){
+		 			$("#yzm").removeClass("active");
+		 			$("#confirmbtn").removeClass("active");
+		 		}else{
+		 			$("#yzm").addClass("active");
+		 			$("#confirmbtn").addClass("active");
+		 		}
+		    });
+			if(shareId != 'null' && shareId != '' && shareId != null){
+		 		if(is_weixn() || isQQ()){
+		 			var cookieShareId = jQuery.cookie('ownShareId');
+		 			if(cookieShareId == shareId){
+		 				onOffShadow(".share-shadow");
+		 			}
+				}
+		 	} 
+		});
+	    function closeRegister(){
+				$("#Register").addClass("none");
+				$("#mobile").val("");
+	    		$("#imgCodeId").val("");
+	    		$("#verifyCode").val("");
+	    		$("#errorMsg").text("");
+	    		isOldCus=false;
+	    }
+		function sendMessageCodeSha(){
+			var shareMobile = $(".dialog-content #shareMobile").val();
+			var imgCode = $(".dialog-content #imgCodeId").val();
+			jQuery.ajax({
+					"type": "get",
+					"url":"/m/yyzTg.do?method=sendMessageCodeSha&mobile=" + shareMobile + "&imgCode="+imgCode,
+					"data": "",
+					"dataType":"json",
+					"success":function(data, desc){
+						if(data.msg == ""){//发送验证码成功
+							$(".dialog-content #shareyzm").attr("disabled",true);
+			 				var $this = $(".dialog-content #shareyzm"),
+			 				count = 60,
+			 				timer = setInterval(function(){
+			 					$($this).addClass('yzm-dis').val(count+"秒后重试");
+			 					count--;
+			 					if(count<=0){
+			 						clearInterval(timer);
+			 						$this.removeClass('yzm-dis').val("获取验证码");
+			 						$this.attr("disabled",false);
+			 						count = 60;
+			 					}
+			 				},1000);
+			 				$(".dialog-content #shareErrorMsg").text("");
+						}else{
+							refreshCaptcha();
+							$(".dialog-content #shareErrorLi").show();
+							$(".dialog-content #shareErrorMsg").text(data.msg);
+						}
+					}
+				});
+		}
+
+		function checkMessageCodeSha(){
+			var isSendVerifyCode = "Y";
+			var messageCode = "";
+			var mobile = $(".dialog-content #shareMobile").val();
+			
+			//先从Cookie中获取手机号与输入的手机号进行判断，如果一致的话，不需要输入验证码，如果不一致，则需要输入验证码
+			var ownMobileFromCookie = jQuery.cookie("ownMobile");
+			if(mobile != ownMobileFromCookie){//与Cookie中的手机号不一致，需要输入验证码
+				isSendVerifyCode = "Y";
+				$(".dialog-content #isHideYzm2").show();
+				$(".dialog-content #imgCode").show();
+				messageCode = $(".dialog-content #shareVerifyCode").val();
+				if(messageCode == ""){
+					return;
+				}
+			}else{
+				isSendVerifyCode = "N";
+				$(".dialog-content #isHideYzm2").hide();
+				$(".dialog-content #imgCode").hide();
+			}
+			
+			jQuery.ajax({
+				"type": "post",
+				"url":"/m/yyzTg.do?method=checkMessageCodeSha",
+				"data": {mobile: mobile, messageCode: messageCode,shareId:shareId,isSendVerifyCode:isSendVerifyCode,activityCode:activityCode,tgflag:tgflag,tgCode:tgCode},
+				"async": false,
+				"dataType":"json",
+				"success":function(data, desc){
+					if(data.msg == ""){//验证短信验证码成功，跳转到生成我的邀请链接
+						//将手机号存入Cookie
+						jQuery.cookie('ownMobile',mobile, {expires: 30, path: '/', domain: '', secure:''});
+						//再保存一个Cookie 有效期3s 遮罩用(防止页面刷新遮罩丢失)
+						jQuery.cookie('ownShareId',data.shareId, {expires: '3', path: '/', domain: '', secure:''});
+						
+						dialog.close("#sharePop");
+						if(is_weixn() || isQQ()){
+							onOffShadow(".share-shadow");
+							window.location.href = 'http://test3.gtjadev.com:8017/m/app/index.jsp?shareId='+data.shareId;
+						}else{
+							dialog.open({
+								id:"creatLinkPop",
+								content:$("#creatLink").html()
+							});
+							//$(".dialog-content #selfHref").html("http://test3.gtjadev.com:8002/tg/yyz/index.jsp?shareId="+data.shareId);
+							$(".dialog-content #selfHref").html("<a class='g-c72020' href='http://test3.gtjadev.com:8017/m/app/index.jsp?shareId="+data.shareId+"'>http://test3.gtjadev.com:8017/m/app/index.jsp?shareId="+data.shareId+"</a>");
+						}
+					}else{
+						$(".dialog-content #shareErrorLi").show();
+						$(".dialog-content #shareErrorMsg").text(data.msg);
+						return;
+					}
+				}
+			});
+		}
+
+		function sendMessageCodeAward(){
+			var awardMobile = $(".dialog-content #awardMobile").val();
+			var imgCode = $(".dialog-content #imgCodeId").val();
+			jQuery.ajax({
+					"type": "get",
+					"url":"/m/yyzTg.do?method=sendMessageCodeSha&mobile=" + awardMobile+"&imgCode="+imgCode,
+					"data": "",
+					"dataType":"json",
+					"success":function(data, desc){
+						if(data.msg == ""){//发送验证码成功
+							$(".dialog-content #awardyzm").attr("disabled",true);
+			 				var $this = $(".dialog-content #awardyzm"),
+			 				count = 60,
+			 				timer = setInterval(function(){
+			 					$($this).addClass('yzm-dis').val(count+"秒后重试");
+			 					count--;
+			 					if(count<=0){
+			 						clearInterval(timer);
+			 						$this.removeClass('yzm-dis').val("获取验证码");
+			 						$this.attr("disabled",false);
+			 						count = 60;
+			 					}
+			 				},1000);
+			 				$(".dialog-content #awardErrorMsg").text("");
+						}else{
+							$(".dialog-content #awardErrorLi").show();
+							$(".dialog-content #awardErrorMsg").text(data.msg);
+						}
+					}
+				});
+		}
+
+		function checkMessageCodeAward(){
+			var isSendVerifyCode = "Y";
+			var messageCode = "";
+			var mobile = $(".dialog-content #awardMobile").val();
+			
+			//先从Cookie中获取手机号与输入的手机号进行判断，如果一致的话，不需要输入验证码，如果不一致，则需要输入验证码
+			var ownMobileFromCookie = jQuery.cookie("ownMobile");
+			if(mobile != ownMobileFromCookie){//与Cookie中的手机号不一致，需要输入验证码
+				isSendVerifyCode = "Y";
+				$(".dialog-content #isHideYzm3").show();
+				$(".dialog-content #imgCode").show();
+				
+				messageCode = $(".dialog-content #awardVerifyCode").val();
+				if(messageCode == ""){
+					return;
+				}
+			}else{
+				isSendVerifyCode = "N";
+				$(".dialog-content #isHideYzm3").hide();
+				$(".dialog-content #imgCode").hide();
+				
+			}
+
+			jQuery.ajax({
+				"type": "post",
+				"url":"/m/yyzTg.do?method=checkMessageCodeSha",
+				"data": {mobile: mobile, messageCode: messageCode,shareId:shareId,isSendVerifyCode:isSendVerifyCode,activityCode:activityCode,tgflag:tgflag,tgCode:tgCode},
+				"async": false,
+				"dataType":"json",
+				"success":function(data, desc){
+					if(data.msg == ""){//短信验证码成功，弹出我的奖励明细
+						
+						//短信校验成功 将手机号码存入Cookie
+						//var ownMobileFromCookie = jQuery.cookie("ownMobile");
+						jQuery.cookie('ownMobile',mobile, {expires: 30, path: '/', domain: '', secure:''});
+						//再保存一个Cookie 有效期3s 遮罩用(防止页面刷新遮罩丢失)
+						jQuery.cookie('ownShareId',data.shareId, {expires: '3', path: '/', domain: '', secure:''});
+						$("#shareId").val(data.shareId);
+						dialog.close("#awardPop");
+						dialog.open({
+							id:"listPop",
+							content:$("#List").html()
+						});
+				 		//根据mobile查出有效邀请信息
+						jQuery.ajax({
+							"type": "get",
+							"url":"/m/yyzTg.do?method=queryInviterListByMobile&mobile=" + mobile,
+							"data": "",
+							"async": false,
+							"dataType":"json",
+							"success":function(data){
+								if(data.msg == ""){					
+									if(data.allList != null && data.allList != ""){		
+										$(".dialog-content #inviterSize").text(data.allList.length);
+										var customerLi = "";
+										jQuery.each(data.allList,function(i,item){
+											customerLi += '<li class="g-cf"><span class="g-fl">'+item.mobile+'</span><span class="g-fr">为您助力，帮攒5金币！</span></li>';
+										});
+										jQuery(".dialog-content #customerItem").append(customerLi);
+									}else{
+										jQuery(".dialog-content #customerItem").append('<li class="g-cf"><span class="g-fl">你还没邀请小伙伴助力</span></li>');
+									}					
+									if(data.totalScore != null && data.totalScore != ""){
+										$(".dialog-content #totalScore").text(data.totalScore);
+									}
+									if(data.usableScore != null && data.usableScore != ""){
+										$(".dialog-content #usedScore").text(data.usableScore);
+									}
+								}else{
+									alert(data.msg);
+								}
+							}
+				 		});		
+					}else{
+						$(".dialog-content #awardErrorLi").show();
+						$(".dialog-content #awardErrorMsg").text(data.msg);
+						return;
+					}
+				}
+			});
+		}
+
+		function checkMobile(moile){
+			var errorMsg = "";
+			if(moile){
+				if(!vildMobile(moile)){
+					//提示手机输入手机号码!
+					errorMsg = "*请输入正确格式的手机号";
+				}else{
+					errorMsg = "";
+				}
+			}else{
+				errorMsg = "*请填写手机号";
+			}
+			return errorMsg;
+		}
+
+		/**
+		* 功能:校验手机正则表达式
+		* @param {} str 手机号
+		* @return {} 标识符
+		*/
+		function vildMobile(str){
+			var flag = true;
+			if(str == "") {
+				flag = false;
+			}else if(!(/^[1-9]\d{10}$/).test(str)) {
+				flag = false;
+			}
+			return flag;
+		}
+		function refreshCaptcha(){
+			$('#captchaImage').attr('src',gtja_ctx + '/m/verifyCodeImageLCDT.jsp?r='+Math.random());
+		}

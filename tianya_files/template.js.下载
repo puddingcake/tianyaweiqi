@@ -1,0 +1,77 @@
+
+/**
+ * Created by jun.zhang on 17/4/25.
+ */
+
+$(document).ready(function () {
+    
+    var fixElement = $('[data-fixed]');
+    if (fixElement.length > 0) {
+        fixElement.map(function (index, el) {
+            $(el).css({'position': "fixed"});
+            var padding = $('#frame_wp').css('padding');
+            if (padding) {
+                $(el).css({'margin': '-' + padding});
+            }
+        })
+    }
+    if(preview){
+        return;
+    }
+    checkUserId();
+    
+
+});
+
+function checkUserId() {
+    if(!localStorage.userId){
+        $.ajax({
+            url: "/microPageAction.do?method=getUuid",
+            type: "GET",
+            success: function(data){
+                localStorage.userId = data;
+            }
+        });
+    }
+
+}
+
+function loadForm() {
+    var form = document.getElementsByTagName("form")[0];
+    if (pageFormUuid && form) {
+        form.setAttribute("id", "clForm");
+    }else{
+        return;
+    }
+
+    form.setAttribute("data-cl-id", pageFormUuid);
+    var isWechat = false;
+
+    _clForm.loadForm(location.origin, pageFormUuid, {
+        formInit: function () {
+            
+        },
+        beforeSubmit: function () {
+
+        },
+        onSubmit: function (args) {
+
+        },
+        fillData: loadCustomer
+    }, {
+        pageUuid: uuid,
+        isWechat: isWechat
+    });
+    $("form label").attr("contenteditable", "false");
+
+    var sAction = "/microPageAction.do?method=submitForm&pageFormUuid=" + pageFormUuid;
+    var pm = [];
+    if (pm.length > 0) {
+        sAction = sAction + "?" + pm.join("&");
+    }
+    form.setAttribute("action", sAction);
+}
+
+function loadCustomer(callBack) {
+    
+}

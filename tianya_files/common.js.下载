@@ -1,0 +1,337 @@
+var weixinZhezhaoDom = `<div class="zhezhaofinancial">
+<img src="https://dl.app.gtja.com/dzswem/microPage/201905/15/016801_1557884841065.png" alt="">
+</div>`;
+
+var mobileZhezhaoDom = `<div id="RegisterFinancial" class="registerfinancial none">
+<div class="registerbodyfinancial">
+    <div class="close" id="RegisterFinancialClose"></div>
+    <div class="sub">
+        <div class="phoneline"><input type="text" placeholder="注册手机号" id="mobileFinancial"></div>
+        <div class="piccodeline" id="imgCode">
+            <input type="text" placeholder="图片验证码" id='imgCodeIdFinancial'>
+            <img id="captchaImageFinancial" src="" alt="" onclick="refreshCaptchaFinancial()">
+        </div>
+        <div class="msgcodeline" id="isHideYzm1">
+            <input type="text" placeholder="短信验证码" id="verifyCodeFinancial">
+            <div class="text active" id="yzmFinancial">发送验证码</div>
+        </div>
+        <div class="error">
+            <span id="errorMsgFinancial" style="color: #FF4040;"></span>
+        </div>
+        <img class="confirmbtn" id="confirmbtnFinancial"
+            src="https://dl.app.gtja.com/dzswem/microPage/201905/09/016801_1557394474520.png" alt="">
+    </div>
+</div>
+</div>`;
+
+var timerCommon = null;
+
+//处理预留手机号，微信遮罩层，唤起君弘等--公用功能  attrs['data-hqjh'] = 'true';
+$(document).on('click', 'a[data-hqjh="true"]', function (e) {
+    var type = getParam("type");
+
+    if (type == "1") {
+        //外推页，微信中弹出提示  否则：弹出留手机号弹窗 + 唤起君弘
+
+        if (GetMobelTypeFinancial().weixin) {
+            //弹出微信中的提示
+            if($("#zhezhaoFinancial") && $("#zhezhaoFinancial").length > 0){
+                $("#zhezhaoFinancial").removeClass("none");
+            }else{
+                $(window.document.body).append($(weixinZhezhaoDom));
+            } 
+        } else {
+            //弹出留手机号操作
+            var timeout = 2000;
+
+            //获取href
+            var href = location.href;
+            if(href.indexOf("type=1")>-1){
+            	href=href.split("type=1")[0]+"type=2";
+            }
+
+            //如果没有手机号dom
+            if(!$('RegisterFinancial') || $('RegisterFinancial').length < 1){
+                $(window.document.body).append($(mobileZhezhaoDom));
+                // 添加监听事件
+
+                addEventForMobileDom();
+            }
+
+            window.location.href = "gtjayyzplus://jumpfunc?islogin=1&needusercode=1&funid=10018&needShare=1&linkurl=" + href; //唤起协议
+            //"gtjayyzplus://jumpfunc?funid=30007&index=hq"
+            //window.location.href = "gtjayyzplus://jumpfunc?funid=10018&linkurl=" + href; //唤起协议
+            setTimeout(function () {
+                refreshCaptchaFinancial();
+                $("#RegisterFinancial").removeClass("none");
+            }, timeout);
+        }
+
+        if (e && e.preventDefault) {
+            //阻止链接跳转
+            e.preventDefault();
+        } else {
+            //IE中阻止的方式 
+            window.event.returnValue = false;
+            return false;
+        }
+    }
+});
+
+function addEventForMobileDom(){
+    //关闭事件
+    $(document).on('click', '#RegisterFinancialClose', function () {
+        closeFinancialRegister();
+    });
+
+    //验证码事件
+    $(document).on('click', '#yzmFinancial', function () {
+        if ($(this).hasClass("active")) {
+            var mobile = $("#mobileFinancial").val();
+            var imgCode = $("#imgCodeIdFinancial").val();
+            var errorMsg = checkMobileFinancial(mobile);
+    
+            if (errorMsg == "") {
+                errorMsg = checkPicCodeFinancial(imgCode);
+            }
+            if (errorMsg != "") {
+                $("#errorMsgFinancial").text(errorMsg);
+            } else {
+                jQuery.ajax({
+                    "type": "post",
+                    "url": "/m/yyzTg.do?method=sendMessageCodeRegAppTg",
+                    "data": { mobile: mobile, imgCode: imgCode },
+                    "dataType": "json",
+                    "success": function (data, desc) {
+                        if (data.result == "1") {//发送验证码成功
+                            $("#yzmFinancial").removeClass("active");
+                            var count = 60;
+                            timerCommon = setInterval(function () {
+                                $("#yzmFinancial").html("重新发送" + count + "s");
+                                count--;
+                                if (count <= 0) {
+                                    clearInterval(timerCommon);
+                                    $("#yzmFinancial").html("发送验证码");
+                                    count = 60;
+                                    $("#yzmFinancial").addClass("active");
+                                }
+                            }, 1000);
+    
+                            $("#errorMsgFinancial").text("");
+                        } else {
+                            refreshCaptchaFinancial();
+                            $("#errorMsgFinancial").text(data.msg);
+                        }
+                    },
+                    error: function (xhr, status, err) {
+                        $("#errorMsgFinancial").text("请求错误！");
+                    },
+                });
+            }
+    
+        }
+    });
+
+    //确认事件
+    $(document).on('click', '#confirmbtnFinancial', function () {
+        var mobile = $("#mobileFinancial").val();
+        var imgCode = $("#imgCodeIdFinancial").val();
+        var messageCode = $("#verifyCodeFinancial").val();
+        var errorMsg = checkMobileFinancial(mobile);
+        if (errorMsg == "") {
+            errorMsg = checkPicCodeFinancial(imgCode);
+        }
+        if (errorMsg == "") {
+            errorMsg = messageCode ? '' : '请输入短信验证码';
+        }
+        if (errorMsg != "") {
+            $("#errorMsgFinancial").text(errorMsg);
+        } else {
+            var channelId = getParam("channelId");
+            var materialId = getParam("activityCode");
+            var tgCode = getParam("tgCode");
+            var prodCode = $("#RegisterFinancial").attr("prodCode");
+            var href = $("#RegisterFinancial").attr("href");
+            var tgFlag = 1;
+            if (!prodCode) {
+                tgFlag = "";
+            }
+            jQuery.ajax({
+                "type": "post",
+                "url": "/microPageAction.do?method=saveCommonTgqdInfo",
+                "data": {
+                    mobile: mobile, messageCode: messageCode, channelId: channelId, materialType: 1,
+                    materialId: materialId, tgFlag: tgFlag, prodCode: prodCode, tgCode: tgCode
+                },
+                "dataType": "json",
+                "async": false,//用异步的话部分ios的safari浏览器跳转不到appstore
+                "success": function (data, desc) {
+                    if (data.result == 1) {
+                        jumpFinancial(href);
+                    } else {
+                        $("#errorMsgFinancial").text(data.msg);
+                    }
+                },
+                error: function (xhr, status, err) {
+                    $("#errorMsgFinancial").text("请求错误！");
+                },
+            });
+        }
+    
+    });
+
+    //css修正
+    function IsPC(){
+        var userAgentInfo = navigator.userAgent;
+        var Agents = new Array("Android", "iPhone", "SymbianOS", "Windows Phone", "iPad", "iPod");
+        var flag = true;
+        for (var v = 0; v < Agents.length; v++) {
+            if (userAgentInfo.indexOf(Agents[v]) > 0) { 
+                flag = false; 
+                break ; 
+            }           
+        }
+        return flag;
+    }
+    if(IsPC()){
+        $(".registerbodyfinancial").css("font-size",'10px');
+        $("#RegisterFinancial").css("width","580px");
+        $("#RegisterFinancial").css("margin-left",($(document).width()-580)/2);
+    }else{
+       $(".registerbodyfinancial").css("font-size",$(window).width()/580*10);
+    }
+	
+	$(window).resize(function(){
+	    if(IsPC()){
+          $(".registerbodyfinancial").css("font-size",'10px');
+          $("#RegisterFinancial").css("width","580px");
+          $("#RegisterFinancial").css("margin-left",($(document).width()-580)/2);
+	    }else{
+         $(".registerbodyfinancial").css("font-size",$(window).width()/580*10);
+	    }
+	})
+}
+
+function GetMobelTypeFinancial() {
+    var browser = {
+        versions: function () {
+            var u = window.navigator.userAgent;
+            return {
+                trident: u.indexOf('Trident') > -1, //IE内核
+                presto: u.indexOf('Presto') > -1, //opera内核
+                Alipay: u.indexOf('Alipay') > -1, //支付宝
+                webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+                gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+                mobile: !!u.match(/AppleWebKit.*Mobile.*/), //是否为移动终端
+                ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+                android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+                iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者安卓QQ浏览器
+                //iPhone: u.match(/iphone|ipod|ipad/),//
+                iPad: u.indexOf('iPad') > -1, //是否为iPad
+                webApp: u.indexOf('Safari') == -1, //是否为web应用程序，没有头部与底部
+                weixin: u.indexOf('MicroMessenger') > -1, //是否为微信浏览器
+                qq: u.match(/\sQQ/i) !== null, //是否QQ
+                Safari: u.indexOf('Safari') > -1,
+                ///Safari浏览器,
+            };
+        }()
+    };
+    return browser.versions;
+}
+
+function refreshCaptchaFinancial() {
+	$('#captchaImageFinancial').attr('src', '/m/verifyCodeImageLCDT.jsp?r=' + Math.random());
+}
+
+function closeFinancialRegister() {
+	$("#RegisterFinancial").addClass("none");
+	$("#mobileFinancial").val("");
+	$("#imgCodeIdFinancial").val("");
+	$("#verifyCodeFinancial").val("");
+	$("#captchaImageFinancial").attr("src", '');
+	$("#errorMsgFinancial").text("");
+	$("#RegisterFinancial").attr("prodCode", "");
+	clearInterval(timerCommon);
+	$("#yzmFinancial").html("发送验证码");
+	$("#yzmFinancial").addClass("active");
+}
+
+function checkMobileFinancial(moile) {
+	var errorMsg = "";
+	if (moile) {
+		if (!vildMobile(moile)) {
+			//提示手机输入手机号码!
+			errorMsg = "请输入正确格式的手机号";
+		} else {
+			errorMsg = "";
+		}
+	} else {
+		errorMsg = "请填写手机号";
+	}
+	return errorMsg;
+}
+function checkPicCodeFinancial(verifyCode) {
+	if (!verifyCode) {
+		return ("请输入图片验证码");
+	} else {
+		if (!isVerifyCode(verifyCode)) {
+			return ("请输入正确的图片验证码");
+		} else {
+			return "";
+		}
+	}
+}
+
+function jumpFinancial(href) {
+	// 安卓
+	if (GetMobelTypeFinancial().android) {
+		// 安卓
+		getAndroidVersionFinancial();
+	} else {
+		// ios
+		window.location.href = 'https://itunes.apple.com/us/app/id952047557?l=zh&ls=1&mt=8';
+	}
+
+}
+
+
+function getAndroidVersionFinancial() {
+	$.ajax({
+		type: "get",
+		url: "http://dl.app.gtja.com/package/yyz/android/normal/version.json",
+		dataType: "jsonp",
+		jsonpCallback: "cb",
+		success: function (json) {
+			var data = json.replace(/[\r\n\s]/g, '');
+			data = JSON.parse(data);
+			var url = data.currentInfo.downloadUrl;
+			window.location.href = url;
+		},
+	});
+}
+function GetMobelTypeFinancial() {
+	var browser = {
+		versions: function () {
+			var u = window.navigator.userAgent;
+			return {
+				trident: u.indexOf('Trident') > -1, //IE内核
+				presto: u.indexOf('Presto') > -1, //opera内核
+				Alipay: u.indexOf('Alipay') > -1, //支付宝
+				webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+				gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+				mobile: !!u.match(/AppleWebKit.*Mobile.*/), //是否为移动终端
+				ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+				android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+				iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者安卓QQ浏览器
+				//iPhone: u.match(/iphone|ipod|ipad/),//
+				iPad: u.indexOf('iPad') > -1, //是否为iPad
+				webApp: u.indexOf('Safari') == -1, //是否为web应用程序，没有头部与底部
+				weixin: u.indexOf('MicroMessenger') > -1, //是否为微信浏览器
+				qq: u.match(/\sQQ/i) !== null, //是否QQ
+				Safari: u.indexOf('Safari') > -1,
+				///Safari浏览器,
+			};
+		}()
+	};
+	return browser.versions;
+}

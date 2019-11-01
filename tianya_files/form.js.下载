@@ -1,0 +1,1561 @@
+var _clForm = function () {
+    var formSetting;
+    var needVerify = false;
+    var callBack;
+    var fillValue;
+    var beforeSubmitForm;
+    var onSubmit;
+    var formUuid;
+    var host;
+    var isWechat;
+    var pageUuid;
+    var FORM;
+    var VERSION;
+    var Prefix = '';
+
+    var DEFAULT_DATA = {};
+    var AjaxCheck = true;
+    var autoHide = false;
+
+    var pageDataCity = {};
+    var LOCATION = {
+        PROVINCE: {},
+        CITY: {},
+        COUNTRY: []
+    };
+
+    var AGENT = (function () {
+        function getHttpRequest(headers) {
+            var http;
+            if (window.XMLHttpRequest) {
+                http = new XMLHttpRequest();
+            } else {
+                // code for IE6, IE5
+                http = new ActiveXObject('Microsoft.XMLHTTP');
+            }
+            var result, pendingActions = [],
+                errorActions = [],
+                isReady = false;
+
+            var readyFunction = function (data, actions, status) {
+                isReady = true;
+                var jsonData = '';
+                try {
+                    jsonData = JSON.parse(data);
+                } catch (e) {
+                    // do nothing;
+                }
+                result = {
+                    data: data,
+                    jsonData: jsonData,
+                    status: status
+                };
+
+                if (actions.length > 0) {
+                    actions.forEach(function (action) {
+                        action(result);
+                    })
+                }
+            };
+
+            var prepareListener = function (type, url, args) {
+                http.onreadystatechange = function () {
+                    if (http.readyState == 4) {
+                        if (http.status == 200) {
+                            readyFunction(http.responseText, pendingActions, http.status);
+                        } else {
+                            readyFunction(http.responseText, errorActions, http.status);
+                        }
+                    }
+                };
+                args = args || {};
+                var async = args.async === undefined ? true : args.async;
+                http.open(type, url, async);
+                if (headers) {
+                    headers.forEach(function (header) {
+                        for (var key in header) {
+                            http.setRequestHeader(key, header[key]);
+                        }
+                    });
+                }
+            };
+
+            http.get = function (url, args) {
+                prepareListener('GET', url, args);
+                http.send();
+                return http;
+            };
+
+            http.post = function (url, data, args) {
+                prepareListener('POST', url, args);
+                http.send(data);
+                return http;
+            };
+
+            var actionHandler = function (action, actionArray) {
+                if (typeof action == 'function') {
+                    if (isReady) {
+                        action(result);
+                    } else {
+                        actionArray.push(action);
+                    }
+                }
+            };
+
+            http.then = function (readyAction) {
+                actionHandler(readyAction, pendingActions);
+                return http;
+            };
+
+            http.error = function (errorAction) {
+                actionHandler(errorAction, errorActions);
+                return http;
+            };
+
+            return http;
+        }
+
+        function getQueryParamsMap(url, params) {
+            var formParams = url.split('?')[1];
+            if (formParams) {
+                formParams = formParams.split('&');
+                formParams.map(function (p) {
+                    if (!p) return;
+                    var kv = p.split('=');
+                    if (kv[1]) {
+                        params[kv[0]] = kv[1];
+                    }
+                });
+            }
+        }
+
+        function getParam(name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+            var r = window.location.search.substr(1).match(reg);
+            if (r) return decodeURI(r[2]);
+            return null; //返回参数值
+        }
+
+        return {
+            getHttpRequest: getHttpRequest,
+            getQueryParamsMap: getQueryParamsMap,
+            getParam: getParam
+        }
+    })();
+
+    var STYLE = (function () {
+        function updateDateInputStyle(input) {
+            if (!input.value) {
+                input.classList.add('hide-date-edit-field');
+                input.placeholder = input.dataPlaceholder;
+            } else {
+                input.classList.remove('hide-date-edit-field');
+                input.placeholder = '';
+            }
+        }
+
+        function updateInput(form) {
+            var inputs = form.getElementsByTagName('input');
+            for (var i = 0; i < inputs.length; i++) {
+                var dateInput = inputs[i];
+
+                if ((dateInput.type === 'date' || dateInput.type === 'datetime-local') && dateInput.placeholder) {
+                    dateInput.dataPlaceholder = dateInput.placeholder;
+                    updateDateInputStyle(dateInput);
+                    dateInput.onchange = function () {
+                        updateDateInputStyle(this);
+                    }
+                }
+            }
+        }
+
+        function createOption(label, value) {
+
+            var opt = document.createElement('option');
+            if (value != null) {
+                opt.setAttribute('value', value);
+            }
+            opt.textContent = label;
+            return opt;
+        }
+
+        // for style
+        function addNoLabelField(field) {
+            var node = document.createElement('div');
+            node.setAttribute('data-type', field.type);
+            node.classList.add('cl-column');
+
+            var sLabel = field.label || '';
+            if (field.required) {
+                sLabel += ' *';
+            }
+            var label;
+            var input = null;
+            var needToUpdate = false;
+            switch (field.type.toUpperCase()) {
+                case 'GENDER':
+                    label = document.createElement('label');
+                    label.textContent = sLabel;
+                    node.appendChild(label);
+                    input = document.createElement('span');
+                    input.innerHTML = '<input class="clFormRadioField"  type="radio" value="1" name="' + field.name + '">&nbsp;男</input>\
+		    				  				   <input class="clFormRadioField"  type="radio" value="2" name="' + field.name + '" style="margin-left:10px;">&nbsp;女</input>';
+                    break;
+                case 'BOOLEAN':
+                    label = document.createElement('label');
+                    label.textContent = sLabel;
+                    node.appendChild(label);
+                    input = document.createElement('span');
+                    input.innerHTML = '<input class="clFormRadioField"  type="radio" value="1" name="' + field.name + '">&nbsp;是</input>\
+	    									   <input class="clFormRadioField"  type="radio" value="0" name="' + field.name + '" style="margin-left:10px;">&nbsp;否</input>';
+                    break;
+                case 'DROPDOWN':
+                    input = document.createElement('select');
+                    input.classList.add('clFormSelectField');
+                    input.setAttribute('name', field.name);
+                    var opt = document.createElement('option');
+                    opt.setAttribute('value', '');
+                    opt.setAttribute('selected', true);
+                    opt.setAttribute('disabled', true);
+                    opt.textContent = sLabel;
+                    input.appendChild(opt);
+                    var options = field.options.split('\n');
+                    options.map(function (item) {
+                        opt = document.createElement('option');
+                        opt.setAttribute('value', item);
+                        opt.textContent = item;
+                        input.appendChild(opt);
+                    });
+                    if (field.required) {
+                        input.setAttribute('required', true);
+                    }
+                    break;
+                case 'CHECKBOX':
+                    label = document.createElement('label');
+                    label.textContent = sLabel;
+                    node.appendChild(label);
+                    input = document.createElement('div');
+                    input.classList.add('clFormCheckboxField');
+                    input.setAttribute('name', field.name);
+                    var options = field.options.split('\n');
+                    var str = '';
+                    options.map(function (item) {
+                        str += '<p class="clFormOption"><input type="checkbox" name="' + field.name + '" value="' + item + '">' + item + '</p>';
+                    });
+                    input.innerHTML = str;
+                    if (field.required) {
+                        input.setAttribute('required', true);
+                    }
+                    break;
+                case 'RADIO':
+                    label = document.createElement('label');
+                    label.textContent = sLabel;
+                    node.appendChild(label);
+                    input = document.createElement('div');
+                    input.classList.add('clFormRadioField');
+                    input.setAttribute('name', field.name);
+                    var options = field.options.split('\n');
+                    var str = '';
+                    options.map(function (item) {
+                        str += '<p class="clFormOption"><input type="radio" name="' + field.name + '" value="' + item + '">' + item + '</p>';
+                    });
+                    input.innerHTML = str;
+                    if (field.required) {
+                        input.setAttribute('required', true);
+                    }
+                    break;
+                case 'EMAIL':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'email');
+                    input.classList.add('clFormEmailField');
+                    input.setAttribute('name', field.name);
+                    input.setAttribute('placeholder', sLabel);
+                    break;
+                case 'PHONE':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'tel');
+                    input.classList.add('clFormPhoneField');
+                    input.setAttribute('name', field.name);
+                    input.setAttribute('id', 'clMobileField');
+                    input.setAttribute('placeholder', sLabel);
+                    break;
+                case 'DATE':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'date');
+                    input.classList.add('clFormDateField');
+                    input.setAttribute('name', field.name);
+                    var low = field.low || null;
+                    var high = field.high || null;
+                    var sRange = '';
+                    if (low != null && high != null) {
+                        sRange = '从' + low + '到' + high;
+                    } else if (low != null) {
+                        sRange = '不早于' + low;
+                    } else if (high != null) {
+                        sRange = '不晚于' + high;
+                    }
+                    input.placeholder = sLabel + ': ' + sRange;
+                    needToUpdate = true;
+                    break;
+                case 'NUMBER':
+                case 'MONEY':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'number');
+                    input.classList.add('clFormNumberField');
+                    input.setAttribute('name', field.name);
+                    var low = field.low || null;
+                    var high = field.high || null;
+                    var sRange = '';
+                    if (field.low == 0) {
+                        low = 0;
+                    }
+                    if (field.high == 0) {
+                        high = 0;
+                    }
+                    if (low != null && high != null) {
+                        sRange = '从' + low + '到' + high;
+                    } else if (low != null) {
+                        sRange = '不小于' + low;
+                    } else if (high != null) {
+                        sRange = '不大于' + high;
+                    }
+                    input.placeholder = sLabel + ': ' + sRange;
+                    break;
+                default:
+                    if (field.multipleLine) {
+                        input = document.createElement('textarea');
+                    } else {
+                        input = document.createElement('input');
+                    }
+                    input.classList.add('clFormTextField');
+                    input.setAttribute('type', 'text');
+                    input.setAttribute('name', field.name);
+                    input.placeholder = sLabel;
+                    break;
+            }
+            if (needToUpdate) {
+                var str = input.getAttribute('placeholder') || '';
+                input.onfocus = function () {
+                    this.removeAttribute('placeholder');
+                };
+                input.onblur = function () {
+                    if (this.value == '') this.setAttribute('placeholder', str);
+                };
+            }
+            node.appendChild(input);
+            return node;
+        }
+
+        // for style
+        function addField(field) {
+            var node = document.createElement('div');
+            node.setAttribute('data-type', field.type);
+            var label = document.createElement('label');
+            label.textContent = field.label;
+            if (field.required) {
+                var span = document.createElement('span');
+                span.classList.add('cl-required');
+                span.textContent = '*';
+                label.appendChild(span);
+            }
+            node.appendChild(label);
+            if (field.description && field.description != '') {
+                var descP = document.createElement('p');
+                descP.classList.add('clFormDescription');
+                descP.textContent = field.description;
+                node.appendChild(descP);
+            }
+            var input = null;
+            switch (field.type.toUpperCase()) {
+                case 'GENDER':
+                    input = document.createElement('span');
+                    input.innerHTML = '<input class="clFormRadioField"  type="radio" value="1" name="' + field.name + '">&nbsp;男</input>\
+		    				  				   <input class="clFormRadioField"  type="radio" value="2" name="' + field.name + '" style="margin-left:10px;">&nbsp;女</input>';
+                    break;
+                case 'BOOLEAN':
+                    input = document.createElement('span');
+                    input.innerHTML = '<input class="clFormRadioField"  type="radio" value="1" name="' + field.name + '">&nbsp;是</input>\
+	    									   <input class="clFormRadioField"  type="radio" value="0" name="' + field.name + '" style="margin-left:10px;">&nbsp;否</input>';
+                    break;
+                case 'PROVINCE':
+                case 'CITY':
+                case 'COUNTY':
+                case 'COUNTRY':
+                case 'DROPDOWN':
+                    input = document.createElement('select');
+                    input.classList.add('clFormSelectField');
+                    input.setAttribute('name', field.name);
+                    var options = field.options.split('\n');
+                    options.map(function (item) {
+                        var opt = document.createElement('option');
+                        opt.setAttribute('value', item);
+                        opt.textContent = item;
+                        input.appendChild(opt);
+                    });
+                    break;
+                case 'CHECKBOX':
+                    input = document.createElement('div');
+                    input.classList.add('clFormCheckboxField');
+                    input.setAttribute('name', field.name);
+                    var options = field.options.split('\n');
+                    var str = '';
+                    options.map(function (item) {
+                        str += '<p class="clFormOption"><input type="checkbox" name="' + field.name + '" value="' + item + '">' + item + '</p>';
+                    });
+                    input.innerHTML = str;
+                    if (field.required) {
+                        input.setAttribute('required', true);
+                    }
+                    break;
+                case 'RADIO':
+                    input = document.createElement('div');
+                    input.classList.add('clFormRadioField');
+                    input.setAttribute('name', field.name);
+                    var options = field.options.split('\n');
+                    var str = '';
+                    var isFirst = true;
+                    options.map(function (item) {
+                        if (isFirst) {
+                            str += '<p class="clFormOption"><input type="radio" name="' + field.name + '" value="' + item + '">' + item + '</p>';
+                            isFirst = false;
+                        } else {
+                            str += '<p class="clFormOption"><input type="radio" name="' + field.name + '" value="' + item + '">' + item + '</p>';
+                        }
+                    });
+                    input.innerHTML = str;
+                    if (field.required) {
+                        input.setAttribute('required', true);
+                    }
+                    break;
+                case 'EMAIL':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'email');
+                    input.classList.add('clFormEmailField');
+                    input.setAttribute('name', field.name);
+                    break;
+                case 'PHONE':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'tel');
+                    input.classList.add('clFormPhoneField');
+                    input.setAttribute('name', field.name);
+                    input.setAttribute('id', 'clMobileField');
+                    break;
+                case 'DATE':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'date');
+                    input.classList.add('clFormDateField');
+                    input.setAttribute('name', field.name);
+                    var low = field.low || null;
+                    var high = field.high || null;
+                    if (low != null) {
+                        input.dataset['low'] = low;
+                    }
+                    if (high != null) {
+                        input.dataset['high'] = high;
+                    }
+                    if (low != null && high != null) {
+                        input.placeholder = '从' + low + '到' + high;
+                    } else if (low != null) {
+                        input.placeholder = '不早于' + low;
+                    } else if (high != null) {
+                        input.placeholder = '不晚于' + high;
+                    }
+                    break;
+                case 'NUMBER':
+                case 'MONEY':
+                    input = document.createElement('input');
+                    input.setAttribute('type', 'number');
+                    input.classList.add('clFormNumberField');
+                    input.setAttribute('name', field.name);
+                    var low = field.low || null;
+                    var high = field.high || null;
+                    if (field.low == 0) {
+                        low = 0;
+                    }
+                    if (field.high == 0) {
+                        high = 0;
+                    }
+                    if (low != null) {
+                        input.dataset['low'] = low;
+                    }
+                    if (high != null) {
+                        input.dataset['high'] = high;
+                    }
+                    if (low != null && high != null) {
+                        input.placeholder = '从' + low + '到' + high;
+                    } else if (low != null) {
+                        input.placeholder = '不小于' + low;
+                    } else if (high != null) {
+                        input.placeholder = '不大于' + high;
+                    }
+                    break;
+                default:
+                    if (field.multipleLine) {
+                        input = document.createElement('textarea');
+                    } else {
+                        input = document.createElement('input');
+                    }
+                    input.classList.add('clFormTextField');
+                    input.setAttribute('type', 'text');
+                    input.setAttribute('name', field.name);
+                    break;
+            }
+            if (field.required) {
+                input.setAttribute('required', true);
+            }
+            node.appendChild(input);
+            return node;
+        }
+
+        // for style
+        function getDefaultStyle() {
+            return 'form label{display:block;font-family:Microsoft YaHei,Helvetica;font-size:1.1em;font-weight:bold;color:#676a6c;}form .clFormDescription{font-family:Microsoft YaHei;font-size:1.1em;font-weight:normal;color:#676a6c;}form .clFormOption{font-family:Microsoft YaHei;font-size:1.1em;font-weight:normal;color:#676a6c;}form label{margin-top:10px;}#mobileVerifyRow{position:relative;}fieldset{border-width:0px;max-width:300px;display:block;margin-left:auto;margin-right:auto;}.clFormTextField, .clFormNumberField, .clFormDateField, .clFormPhoneField, .clFormEmailField, .clFormSelectField{width:100%;min-height:32px;height:32px;border-style:solid;border-width:1px;border-color:#cccccc;}#clGetCodeBtn{position:absolute;right:0px;height:32px;line-height:32px;border-width:0px;bottom:0px;background-color:lightsteelblue;}.clFormSelectField{font-size:15px;}.submitButtonWrapper{text-align:center;}#clSubmitForm{margin-top:10px;background-color:#007aff;border-width:px;border-color:#007aff;font-family:Microsoft YaHei;font-size:1.1em;color:#ffffff;font-weight:normal;}input{padding: 0px;box-sizing: border-box;}.cl-column:after{display: none;}';
+        }
+
+        // for style
+        function getStyle(style) {
+            if (!style) {
+                return getDefaultStyle();
+            }
+            var aStyle = [];
+            aStyle.push('form label{display:block;');
+            aStyle.push('font-family:' + style.label.fontFamily + ',Helvetica;');
+            if (style.label.fontSize == 'large') {
+                aStyle.push('font-size:18px;');
+            } else if (style.label.fontSize == 'small') {
+                aStyle.push('font-size:14px;');
+            } else {
+                aStyle.push('font-size:16px;');
+            }
+            if (style.label.bold) {
+                aStyle.push('font-weight:bold;');
+            } else {
+                aStyle.push('font-weight:normal;');
+            }
+            aStyle.push('color:' + style.label.color + ';}');
+
+            aStyle.push('form .clFormDescription{-webkit-margin-before:0px;-webkit-margin-after:0px;');
+            aStyle.push('font-family:' + style.description.fontFamily + ',Helvetica;');
+            if (style.description.fontSize == 'large') {
+                aStyle.push('font-size:16px;');
+            } else if (style.description.fontSize == 'small') {
+                aStyle.push('font-size:12px;');
+            } else {
+                aStyle.push('font-size:14px;');
+            }
+            if (style.description.bold) {
+                aStyle.push('font-weight:bold;');
+            } else {
+                aStyle.push('font-weight:normal;');
+            }
+            aStyle.push('color:' + style.description.color + ';}');
+
+            aStyle.push('form .clFormOption{');
+            aStyle.push('font-family:' + style.option.fontFamily + ',Helvetica;');
+            if (style.option.fontSize == 'large') {
+                aStyle.push('font-size:17px;');
+            } else if (style.option.fontSize == 'small') {
+                aStyle.push('font-size:12px;');
+            } else {
+                aStyle.push('font-size:14px;');
+            }
+            if (style.option.bold) {
+                aStyle.push('font-weight:bold;');
+            } else {
+                aStyle.push('font-weight:normal;');
+            }
+            aStyle.push('color:' + style.option.color + ';}');
+
+            if (style.lingHeight == 'small') {
+                aStyle.push('form label{margin-top:25px;margin-bottom:5px;}');
+                aStyle.push('form .clFormDescription{margin-top:5px;margin-bottom:10px;}');
+            } else if (style.lingHeight == 'large') {
+                aStyle.push('form label{margin-top:45px;margin-bottom:10px;}');
+                aStyle.push('form .clFormDescription{margin-top:-10px;margin-bottom:5px;}');
+            } else {
+                aStyle.push('form label{margin-top:25px;margin-bottom:10px;}');
+                aStyle.push('form .clFormDescription{margin-top:-10px;margin-bottom:10px;}');
+            }
+
+            aStyle.push('form span.cl-required{color:#ff5a54;margin-left:10px;}');
+
+            aStyle.push('.cl-column{position:relative;}');
+            aStyle.push('.cl-column:after{position:absolute;z-index:9999;height:100%;width:100%;top:0px;left:0px;content:\'\';}');
+            aStyle.push('fieldset{border-width:0px;}');
+            aStyle.push('#clForm{border-width:0px;max-width:300px;display:block;margin-left:auto;margin-right:auto;}');
+
+            aStyle.push('.clFormTextField, .clFormNumberField, .clFormDateField, .clFormPhoneField, .clFormEmailField, .clFormSelectField{');
+            aStyle.push('-webkit-appearance:none;width:100%;min-height:32px;height:32px;border-style:solid;padding:0px 5px;color:#777777;background-color:#f3f5f7;font-size:15px;');
+            if (style.field.radius == 'on') {
+                aStyle.push('border-radius:2px;');
+            }
+            //aStyle.push("border-width:"+style.field.size+"px;");
+            aStyle.push('border-width:' + '0px;');
+            aStyle.push('border-color:' + style.field.color + ';border-top:1px solid #e4e9ec}');
+
+            aStyle.push('.clFormTextField:focus, .clFormNumberField:focus, .clFormDateField:focus, .clFormPhoneField:focus, .clFormEmailField:focus, .clFormSelectField:focus{border:1px solid #2EB2ED;}');
+
+            aStyle.push('.clFormSelectField{background: url("http://host.convertlab.cn/img/iso_select_arrow.png") no-repeat scroll right center #f3f5f7;}');
+            aStyle.push('.clFormDateField{background: url("http://host.convertlab.cn/img/iso_date_icon.png") no-repeat scroll right center #f3f5f7;}');
+
+            aStyle.push('.clFormOption input{height:16px;width:16px;margin-right:10px;vertical-align:middle;box-shadow: 0px 1px 3px #e1e1e1;}');
+            aStyle.push('.clFormOption{margin-top:5px;margin-bottom:5px;}');
+
+            aStyle.push('#mobileVerifyRow{position:relative;}#clGetCodeBtn{position:absolute;right:0px;height:32px;line-height:32px;border-width:0px;bottom:0px;background-color:#2eb2ed;font-size:15px;}');
+            aStyle.push('#clSubmitForm{');
+            aStyle.push('margin-top:10px;font-size:14px;');
+            if (style.button.shadow == 'on') {
+                aStyle.push('box-shadow: 0px 1px 3px #b3b2b2;');
+            }
+            aStyle.push('background-color:' + style.button.color + ';');
+            if (style.button.borderRadius == 'on') {
+                aStyle.push('border-radius:2px;');
+            }
+            aStyle.push('border-width:' + style.button.borderSize + 'px;');
+            aStyle.push('border-color:' + style.button.borderColor + ';');
+            aStyle.push('font-family:' + style.button.textFont + ';');
+            if (style.button.textSize == 'large') {
+                aStyle.push('font-size:17px;');
+            } else if (style.button.textSize == 'small') {
+                aStyle.push('font-size:13px;');
+            } else {
+                aStyle.push('font-size:15px;');
+            }
+            if (style.button.size == 'small') {
+                aStyle.push('padding:5px 10px;');
+            } else if (style.button.size == 'large') {
+                aStyle.push('padding:5px;width:100%;');
+            } else {
+                aStyle.push('width:150px;height:32px;');
+            }
+            if (style.button.borderRadius == 'on') {
+                aStyle.push('border-radius: 5px;');
+            } else {
+                aStyle.push('border-radius: 0px;');
+            }
+            aStyle.push('color:' + style.button.textColor + ';');
+            if (style.button.textBold) {
+                aStyle.push('font-weight:bold;');
+            } else {
+                aStyle.push('font-weight:normal;');
+            }
+            aStyle.push('}');
+            aStyle.push('#clGetCodeBtn{');
+            aStyle.push('color:' + style.button.textColor + ';');
+            aStyle.push('background-color:' + style.button.color + ';');
+            if (style.button.textBold) {
+                aStyle.push('font-weight:bold;');
+            } else {
+                aStyle.push('font-weight:normal;');
+            }
+            aStyle.push('}');
+            aStyle.push('form{padding-bottom:20px;}');
+            aStyle.push('.submitButtonWrapper{text-align:' + style.button.layout + ';}');
+            aStyle.push('input{padding: 0px;box-sizing: border-box;}');
+            aStyle.push('.cl-column:after{display: none;}');
+            return aStyle.join('');
+        }
+
+        return {
+            updateInput: updateInput,
+            createOption: createOption,
+            addNoLabelField: addNoLabelField,
+            addField: addField,
+            getStyle: getStyle
+        }
+    })();
+
+    var _getFieldValue = function (name, field, node) {
+        var nodeList;
+        var value = '';
+        var val = [];
+        if (!node.length) {
+            nodeList = [node];
+        } else {
+            nodeList = node;
+        }
+
+        for (var i = 0; i < nodeList.length; i++) {
+            var nodeDOM = nodeList[i];
+            if (nodeDOM) {
+                if (nodeDOM.type === 'radio') {
+                    if (nodeDOM.checked) {
+                        if (name === 'gender') {
+                            value = nodeDOM.value;
+                            break;
+                        } else if (!field.isRating) {
+                            // handle true/false
+                            if (nodeDOM.value == '1') {
+                                value = 'true';
+                                break;
+                            } else if (nodeDOM.value == '0') {
+                                value = 'false';
+                                break;
+                            }
+                        }
+                        if (nodeDOM.classList.contains('other')) {
+                            value = nodeDOM.parentElement.parentElement.querySelector('input[type="text"]').value;
+                        } else {
+                            value = nodeDOM.value;
+                        }
+                        break;
+                    }
+                } else if (nodeDOM.type === 'checkbox') {
+                    if (nodeDOM.checked) {
+                        if (nodeDOM.classList.contains('other')) {
+                            val.push(nodeDOM.parentElement.parentElement.querySelector('input[type="text"]').value);
+                        } else {
+                            val.push(nodeDOM.value);
+                        }
+                    }
+                } else if (nodeDOM.localName == 'select' && nodeDOM.value == '请选择') {
+                    value = '';
+                    break;
+                } else if (nodeDOM.type == 'datetime-local') {
+                    /**
+                     var dtValue = nodeDOM.value;
+                     var dtValues = dtValue.split('T');
+                     if (dtValues[1] && dtValues[1].length < 8) {
+                        dtValue += ':00'
+                    }
+                     */
+
+                    if (nodeDOM.value) {
+                        var tmp = new Date(nodeDOM.value + 'Z');
+                        var dt_val = new Date(+tmp + tmp.getTimezoneOffset() * 60 * 1000);
+                        value = dt_val.toISOString().slice(0, -5) + 'Z';
+                        break;
+                    }
+                } else {
+                    value = nodeDOM.value;
+                    break;
+                }
+            }
+        }
+        return value || val.join('__') || '';
+    };
+
+    var preSetForm = function (props) {
+        FORM = props.form || document.getElementById('clForm');
+        if (!FORM) {
+            return;
+        }
+
+        formSetting = props.setting;
+        host = formSetting.server;
+        if (!pageUuid && props.pageUuid) {
+            pageUuid = props.pageUuid;
+        }
+
+        Prefix = props.prefix || '';
+
+        FORM.setAttribute('method', 'POST');
+
+        needVerify = false;
+
+        STYLE.updateInput(FORM);
+
+        if (!props.version) {
+            FORM.innerHTML = '';
+            var fieldset = document.createElement('fieldset');
+            fieldset.setAttribute('id', 'formFieldSet');
+
+            var btn = document.createElement('button');
+            btn.setAttribute('type', 'button');
+            btn.setAttribute('id', 'clSubmitForm');
+            //btn.setAttribute('data-cl-event', 'submit_form');
+            //btn.setAttribute('data-cl-id', formUuid);
+            //btn.setAttribute('data-cl-name', document.title);
+            btn.textContent = props.content.btnText;
+
+            var formType = FORM.dataset.formtype;
+
+            props.fields.map(function (field) {
+                var node;
+                if (formType && formType == 'placeholder') {
+                    node = STYLE.addNoLabelField(field);
+                } else {
+                    node = STYLE.addField(field);
+                }
+                fieldset.appendChild(node);
+                if (field.type.toUpperCase() == 'PHONE' && field.needVerify) {
+                    var column = document.createElement('div');
+                    column.setAttribute('data-type', 'Code');
+                    column.setAttribute('id', 'mobileVerifyRow');
+                    if (FORM.dataset.formtype && FORM.dataset.formtype == 'placeholder') {
+                        column.innerHTML = '<input name="code" type="text" placeholder="验证码" class="clFormTextField" />' +
+                            '<button type="button" id="clGetCodeBtn">获取验证码</button>';
+                    } else {
+                        column.innerHTML = '<label>验证码</label>' +
+                            '<input name="code" type="text" class="clFormTextField" />' +
+                            '<button type="button" id="clGetCodeBtn">获取验证码</button>';
+                    }
+                    fieldset.appendChild(column);
+                    needVerify = true;
+                }
+            });
+
+            FORM.appendChild(fieldset);
+            var p = document.createElement('p');
+            p.classList.add('submitButtonWrapper');
+            p.appendChild(btn);
+            FORM.appendChild(p);
+
+            var css = document.createElement('style');
+            css.type = 'text/css';
+            css.appendChild(document.createTextNode(STYLE.getStyle(props.content.style)));
+            document.getElementsByTagName('head')[0].appendChild(css);
+
+            var styleElement = document.createElement('style');
+            styleElement.type = 'text/css';
+            styleElement.appendChild(document.createTextNode('.cl-column:after{display: none;}'));
+            document.getElementsByTagName('head')[0].appendChild(styleElement);
+        }
+
+        if (props.setting.autoFill && fillValue) {
+            autoHide = props.setting.autoHide;
+            fillValue(fillCustomerData);
+        }
+
+        FORM.setAttribute('data-cl-attached', 'false');
+
+        if (props.callBack) {
+            props.callBack();
+        }
+
+        var codeBtn = props.codeBtn || document.getElementById('clGetCodeBtn');
+        if (codeBtn) {
+            needVerify = true;
+            codeBtn.onclick = getCode;
+        }
+        var submitBtn = props.submitBtn || document.getElementById('clSubmitForm');
+        if (submitBtn) {
+            submitBtn.onclick = function () {
+                if (preview) {
+                    return;
+                }
+                beforeSubmit(props.fields, submitForm);
+            };
+        }
+    };
+
+    function render(setting) {
+        var content = JSON.parse(setting.content);
+        VERSION = content.version;
+
+        preSetForm({
+            submitBtn: document.getElementById('clSubmitForm'),
+            setting: setting,
+            content: content,
+            callBack: callBack,
+            fields: content.fields,
+            version: content.version
+        })
+    }
+
+    function autoFillCity() {
+        var $city = document.querySelector("[name='" + Prefix + "city']"),
+            $country = document.querySelector("[name='" + Prefix + "country']"),
+            $province = document.querySelector("[name='" + Prefix + "province']");
+        if ($country && pageDataCity.country) {
+            $country.value = pageDataCity.country;
+            $country.onchange({target: $country});
+        }
+
+        if ($province && pageDataCity.province) {
+            $province.value = pageDataCity.province;
+            $province.onchange({target: $province})
+        }
+
+        if ($city && pageDataCity.city) {
+            $city.value = pageDataCity.city;
+            $city.onchange({target: $city});
+        }
+    }
+
+    function fnvHash(s) {
+        var h = 0x811c9dc5;
+        for (var i = 0, l = s.length; i < l; i++) {
+            h ^= s.charCodeAt(i)
+            h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)
+        }
+        return h >>> 0
+    }
+
+    function makeSureStrLength2(str) {
+        str = str + '';
+        if (str.length === 1) {
+            str = '0' + str;
+        }
+        return str;
+    }
+
+    function formatDate(dateStr) {
+        var dateObj = new Date(dateStr);
+        var date = dateObj.getFullYear() + '-' + makeSureStrLength2(dateObj.getMonth()) + '-' + makeSureStrLength2(dateObj.getDate());
+
+        var time = makeSureStrLength2(dateObj.getHours()) + ':' +
+            makeSureStrLength2(dateObj.getMinutes()) + ':' +
+            makeSureStrLength2(dateObj.getSeconds());
+
+        return date + ' ' + time;
+    }
+
+    function fillCustomerData(data) {
+        var fList = FORM.querySelectorAll("[name]");
+
+        var province;
+        fList.forEach(function (field) {
+            var fName = field.getAttribute("name");
+            var fType = field.getAttribute("type");
+            var sValue = data[fName];
+            if (sValue == null && data.attr) {
+                sValue = data.attr[fName];
+            }
+
+            if (sValue != null) {
+                if (fType == "radio") {
+                    if (sValue == true) {
+                        sValue = "1"
+                    } else if (sValue == false) {
+                        sValue = "0"
+                    }
+
+                    if (field.getAttribute("value") == sValue) {
+                        field.setAttribute("checked", "checked");
+                    } else {
+                        field.removeAttribute("checked");
+                    }
+                } else if (fType == "checkbox") {
+                    var options = sValue.split(",");
+                    if (options.indexOf(field.getAttribute("value")) > -1) {
+                        field.setAttribute("checked", "checked");
+                    } else {
+                        field.removeAttribute("checked");
+                    }
+                } else if (fType == "datetime-local") {
+                    field.value = formatDate(sValue).replace(' ', 'T');
+                } else {
+                    field.value = sValue;
+                }
+
+                if (field.onchange) {
+                    field.onchange({target: field});
+                }
+                DEFAULT_DATA[fName] = sValue;
+            }
+
+            if (fName == 'province') {
+                province = field;
+            }
+        });
+
+        if (province) {
+            province.onchange({target: province});
+        }
+        fList.forEach(function (field) {
+            var fName = field.getAttribute("name");
+            var sValue = data[fName];
+            if (sValue == null && data.attr) {
+                sValue = data.attr[fName];
+            }
+            if (autoHide && sValue != null) {
+                $(field).parents('.field-block').hide();
+            }
+        })
+    }
+
+    function validateRequired(formFields) {
+        try {
+            for (var i = 0; i < formFields.length; i++) {
+                var field = formFields[i];
+                var input = document.querySelector('#clForm [name="' + field.name + '"]');
+                if (!input) {
+                    continue;
+                }
+
+                if (field.required) {
+                    if (input.type == 'checkbox' || input.type == 'radio' || field.type == 'Radio') {
+                        var checkboxes = document.querySelectorAll('#clForm [name="' + field.name + '"]');
+                        var checked = false;
+                        for (var k = 0; k < checkboxes.length; k++) {
+                            if (checkboxes[k].checked) {
+                                checked = true;
+                            }
+                        }
+                        if (!checked) {
+                            return field.label + '不能为空';
+                        }
+                    }
+                    if (input.tagName == "SELECT" || input.localName == "select") {
+                        if (input.value == "请选择" || input.value == field.label) {
+                            return field.label + '不能为空';
+                        }
+                    }
+                    if (input.value == '') {
+                        return field.label + '不能为空';
+                    }
+                } else if (input.value == '') {
+                    continue;
+                }
+
+                if (input.type == 'number') {
+                    var low = field.low || null;
+                    var high = field.high || null;
+                    var max = 2000000000;
+                    if (field.low == 0) {
+                        low = 0;
+                    }
+                    if (field.high == 0) {
+                        high = 0;
+                    }
+                    if (low != null && input.value < low) {
+                        return field.label + '不能小于' + low;
+                    }
+                    if (high != null && input.value > high) {
+                        return field.label + '不能大于' + high;
+                    }
+                    if (input.value > max) {
+                        return field.label + '不能大于2000000000';
+                    }
+                } else if (input.type == 'date') {
+                    var _reDateReg = /^(?:19|20)[0-9][0-9]-(?:(?:0[1-9])|(?:1[0-2]))-(?:(?:[0-2][1-9])|(?:[1-3][0-1]))$/;
+
+                    if (!_reDateReg.test(input.value)) {
+                        return '日期格式不正确，请输入格式为2016-01-01的日期';
+                    }
+                    var low = field.low || null;
+                    var high = field.high || null;
+                    if (low != null && input.value < low) {
+                        return field.label + '不能早于' + low;
+                    }
+                    if (high != null && input.value > high) {
+                        return field.label + '不能晚于' + high;
+                    }
+                } else if (input.type == 'tel' && input.name == "mobile") {
+                    input.value = input.value.trim ? input.value.trim() : input.value;
+                    var internationalSms = AGENT.getParam('internationalSms');
+                    if (!internationalSms) {
+                        var reg = /^1\d[0-9]\d{8}$/;
+                        if (!reg.test(input.value)) {
+                            return '手机号' + input.value + '格式不正确';
+                        }
+                    }
+
+                } else if (input.type == 'checkbox') {
+                    var low = field.low || 0;
+                    var high = field.high || null;
+                    var checkboxes = document.querySelectorAll('#clForm [name="' + field.name + '"]');
+                    var checkedCount = 0;
+                    Array.prototype.forEach.call(checkboxes, function (option) {
+                        checkedCount += option.checked;
+                    });
+                    if (checkedCount < low) {
+                        return field.label + '需要至少选择' + low + '项';
+                    }
+                    if (high && checkedCount > high) {
+                        return field.label + '最多选择' + high + '项';
+                    }
+                } else if (input.type == 'email') {
+                    var reg = /^[a-zA-Z0-9_]+([._\\-]*[a-zA-Z0-9])*@([a-zA-Z0-9])*.*[a-zA-Z0-9]+$/;
+                    if (!reg.test(input.value)) {
+                        return '请输入正确的邮箱地址'
+                    }
+                    if (input.value.length >= 128) {
+                        return '邮箱地址超长'
+                    }
+                }
+            }
+        } catch (e) {
+            // service.alert(e);
+        }
+        return null;
+    }
+
+    function beforeSubmit(formFields, submitForm) {
+        var msg = validateRequired(formFields);
+        if (msg != null) {
+            alert(msg);
+            return;
+        }
+
+        if (needVerify && !autoHide) {
+            var mobile = FORM.querySelector('input[name="' + Prefix + 'mobile"]').value;
+            var code = FORM.querySelector('input[name="code"]').value;
+            if (code) {
+                mobile = encodeURIComponent(mobile);
+                AGENT.getHttpRequest().get(formSetting.server + '/sms/verify?mobile=' + mobile + '&code=' + code).then(function (result) {
+                    var data = result.jsonData;
+                    if (data) {
+                        submitForm && submitForm(formFields);
+                    } else {
+                        alert('验证码不正确!');
+                    }
+                });
+            } else {
+                alert('请输入验证码!');
+            }
+        } else if (submitForm) {
+            submitForm(formFields);
+        }
+    }
+
+    function doCondition(submitObj, formMeta, data) {
+        for (var i = 0; i < formMeta.length; i++) {
+            var condition = formMeta[i].condition;
+            condition = condition.map(function (item) {
+                if (item.relaction == "equals") {
+                    return {valid: submitObj[item.field] == item.value ? true : false}
+                } else {
+                    return {valid: submitObj[item.field].indexOf(item.value) >= 0 ? true : false}
+                }
+            });
+            if (condition.filter(function (item) {
+                    return item.valid == false
+                }).length == 0) {
+                var redirectType = formMeta[i].redirectType,
+                    replaceType = formMeta[i].replaceType,
+                    redirectText = formMeta[i].redirectText,
+                    redirectUuid = formMeta[i].redirectUuid,
+                    redirectUrl = formMeta[i].redirectUrl;
+                doActionAfterSubmitForm(redirectType, replaceType, redirectText, redirectUuid, redirectUrl, formMeta[i].pageType, data);
+                return true;
+            } else {
+                continue;
+            }
+        }
+        return false;
+    }
+
+    function doActionAfterSubmitForm(redirectType, replaceType, redirectText, redirectUuid, redirectUrl, pageType, data) {
+        if (redirectType == 'link') {
+            var link = redirectUrl;
+            if (link.indexOf('append=true') > 0) {
+                link = link.replace('append=true', data)
+            }
+            window.location = link;
+        } else if (redirectType == 'page') {
+            window.location = host + '/page/' + redirectUuid;
+        } else if (redirectType == 'module') {
+            var hideModule = $("div[data-pagetype=" + pageType + "]");
+            if (replaceType == "FORM") {
+                if (hideModule.find('.Wrights').length > 0) {
+                    delPromote(hideModule);
+                }
+                FORM.style.display = 'none';
+                $(FORM).replaceWith(hideModule);
+                if (hideModule) {
+                    hideModule.show();
+                }
+            } else {
+                if (hideModule.find('.Wrights').length > 0) {
+                    delPromote(hideModule);
+                }
+                hideModule.siblings().hide();
+                hideModule.show();
+            }
+
+        } else {
+            var tempDiv = document.createElement('div');
+            tempDiv.setAttribute('id', '_cl_messageArea');
+            tempDiv.innerHTML = redirectText;
+
+            var anchor = document.createElement('a');
+            anchor.setAttribute('name', '_cl_messageArea');
+
+            var container = FORM.parentNode;
+            container.innerHTML = '';
+            container.appendChild(anchor);
+            container.appendChild(tempDiv);
+        }
+    }
+
+    function delPromote(dom) {
+        var name = dom.find('.Wrights')[0].dataset['name'];
+        var empty = dom.find('.Wrights')[0].dataset['empty'];
+        var emptyHtml = "<div class=\"Wrights_no\">\n" +
+            "<div class=\"Wrights_no_width\">\n" +
+            "<div class=\"Wrights_no_Con\">\n" +
+            "<div class=\"Wrights_no_Ico\">\n" +
+            "<div><img src=\"http://static.91convert.com/template/image/rights_ico2.png\"/></div></div>\n" +
+            "<div class=\"Wrights_no_Tips\"><p>" + empty + "</p></div>\n" +
+            "</div>\n" +
+            "</div>\n" +
+            "</div>";
+        var params = {};
+        var url = FORM.getAttribute('action');
+        AGENT.getQueryParamsMap(url, params);
+        AGENT.getQueryParamsMap(location.href, params);
+        dom.find('.Wrights_Code').html("<p>加载中...</p>")
+        service.promoteCode.getCode({name: name, uuid: params.pageId}).then(function (res) {
+            var code = res.code;
+            if (res.error) {
+                dom.find('.Wrights').replaceWith(emptyHtml);
+            } else {
+                dom.find('.Wrights_Code').html("<p>" + code + "</p>")
+            }
+        })
+    }
+
+    function submitForm(formFields) {
+        if (beforeSubmitForm) {
+            beforeSubmitForm();
+        }
+        var url = FORM.getAttribute('action');
+        var params = {};
+        AGENT.getQueryParamsMap(url, params);
+        AGENT.getQueryParamsMap(location.href, params);
+        if (!params["pageId"]) {
+            params["pageId"] = fnvHash(document.location.pathname + document.title);
+
+            if (!params["rootDomain"]) {
+                var _d = document.location.host.match(/^.+?(\..+\..+)$/);
+                var _rd = _d && _d.length > 1 ? _d[1].slice(1) : document.location.host;
+                params["rootDomain"] = _rd;
+            }
+            if (!params["domain"]) {
+                params["domain"] = document.location.host;
+            }
+            if (!params["path"]) {
+                params["path"] = document.location.pathname;
+            }
+            if (!params["hosting"]) {
+                params["hosting"] = "web";
+            }
+        }
+        if (!params["targetId"]) {
+            params["targetId"] = formUuid;
+        }
+        if (!params["targetName"]) {
+            params["targetName"] = encodeURI(document.title);
+        }
+        params["userId"] = localStorage.userId;
+
+        var formParams = [];
+        for (var p in params) {
+            if (params[p]) {
+                formParams.push(p + '=' + params[p]);
+            }
+        }
+        var formContent = JSON.parse(formSetting.content);
+        var formMeta = formSetting.formMeta ? JSON.parse(formSetting.formMeta) : [];
+        var redirectType = formSetting.redirectType;
+        var redirectText = formSetting.redirectText;
+        var redirectUuid = formSetting.redirectUuid;
+        var redirectUrl = formSetting.redirectUrl;
+        var replaceType = formContent.replaceType;
+        if (redirectType == 'link') {
+            var link = formSetting.redirectUrl;
+            if (link.indexOf('encryption=true') > 0) {
+                formParams.push('encryption=true');
+            }
+        }
+
+        if (formParams.length > 0) {
+            url = url.split('?')[0] + '?' + formParams.join('&');
+        }
+
+        var arr = [];
+        formFields.map(function (field) {
+            arr.push(getFieldValue(field.name, field));
+        });
+        var hiddens = FORM.querySelectorAll('input[type=hidden]');
+        var contextSet = false;
+        var submitObj = {};
+        for (var i = 0; i < hiddens.length; i++) {
+            var f = hiddens[i];
+            if (f.name == 'cl_context') {
+                if (!contextSet) {
+                    arr.push(f.value);
+                    contextSet = true;
+                }
+            } else {
+                arr.push(f.getAttribute('name') + '=' + f.value);
+            }
+        }
+        arr.push('cltoken=' + formSetting.token);
+        if (needVerify) {
+            arr.push('mobileVerified=' + needVerify);
+        }
+
+        var str_data = arr.join('&');
+        arr.map(function (item) {
+            var arrs = item.split("=");
+            submitObj[arrs[0]] = arrs[1]
+        });
+        console.log(str_data);
+        var xSubmit = AGENT.getHttpRequest([{'Content-type': 'application/x-www-form-urlencoded'}]);
+
+        var submit_btn = document.querySelector('#clSubmitForm');
+        submit_btn.style.background = '#ddd';
+        submit_btn.style.border = '1px solid #ddd';
+        submit_btn.innerText = '数据提交中...';
+        if (AjaxCheck) {
+            AjaxCheck = false;
+            xSubmit.post(url, str_data).then(function (result) {
+                AjaxCheck = true;
+                var data = result.data;
+                if (onSubmit) {
+                    onSubmit(data);
+                }
+                if (doCondition(submitObj, formMeta, data)) {
+
+                } else {
+                    doActionAfterSubmitForm(redirectType, replaceType, redirectText, redirectUuid, redirectUrl, 'from', data);
+                }
+                //var redirectType = formSetting.redirectType;
+            }).error(function (result) {
+                AjaxCheck = true;
+                if (result.status == 403) {
+                    if (result.data == 'LimitSubmit') {
+                        submit_btn.innerText = '您已提交过该表单，请勿重复提交!';
+                        return;
+                    } else if (result.data == 'SubmitFull') {
+                        submit_btn.innerText = '已达到提交人数上限';
+                        return
+                    }
+                }
+            });
+        }
+
+    }
+
+    function encode(str, specialChars) {
+        if (!str) {
+            return '';
+        }
+
+        var result = str;
+        specialChars = specialChars || ['&', '?', '='];
+        var fakePercent = '___REPLACE_PERCENT___';
+        if (str.indexOf('%') > -1) {
+            while (result.indexOf('%') > -1) {
+                result = result.replace('%', fakePercent);
+            }
+        }
+
+        specialChars.forEach(function (char) {
+            while (result.indexOf(char) > -1) {
+                result = result.replace(char, encodeURIComponent(char));
+            }
+        });
+
+        if (str.indexOf('%') > -1) {
+            while (result.indexOf(fakePercent) > -1) {
+                result = result.replace(fakePercent, encodeURIComponent('%'));
+            }
+        }
+        return result;
+    }
+
+    function getFieldValue(name, field) {
+        var nodes = document.getElementsByName(name);
+        var value = '', nodeList = [];
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            var current = node;
+            if (current.tagName == 'DIV') {
+                continue;
+            }
+
+            while (node && !(node.tagName == 'FORM' && node.id == 'clForm')) {
+                node = node.parentNode;
+            }
+
+            if (node) {
+                nodeList.push(current);
+            }
+        }
+
+        if (nodeList.length > 0) {
+            value = encode(_getFieldValue(name, field, nodeList));
+        }
+        return name + '=' + value;
+    }
+
+    function getCode() {
+        var mobile = document.getElementById('clMobileField').value;
+        var internationalSms = AGENT.getParam('internationalSms');
+        if (mobile == null || mobile == '') {
+            alert('手机号不正确');
+            return;
+        }
+        if (!internationalSms) {
+            if (mobile.length < 11) {
+                alert('手机号不正确');
+                return;
+            }
+            if (!(/^1(3|4|5|7|8)\d{9}$/.test(mobile))) {
+                alert('请输入正确的手机号')
+                return;
+            }
+        }
+
+        var name;
+        mobile = encodeURIComponent(mobile);
+
+        var uuid = formUuid || pageUuid;
+        var type = formUuid ? 'form' : 'page';
+
+        AGENT.getHttpRequest().get(formSetting.server + '/sms/signature?uuid=' + uuid + '&type=' + type).then(function (result) {
+            name = result.data;
+        }).error(function () {
+            name = 'ConvertLab';
+        }).then(function () {
+            AGENT.getHttpRequest().get(formSetting.server + '/sms/token?mobile=' + mobile).then(function (result) {
+                var token = result.data;
+                var clSignature = AGENT.getParam('clSignature');
+                if (clSignature) {
+                    name = clSignature;
+                }
+
+                var code_url = formSetting.server + '/sms/get?mobile=' + mobile + '&name=' + name + '&token=' + token + '&type=' + type + '&uuid=' + uuid;
+                if (internationalSms) {
+                    code_url = code_url + "&internationalSms=true"
+                }
+                AGENT.getHttpRequest().get(code_url)
+                    .then(function (result) {
+                        var btnCode = document.getElementById('clGetCodeBtn');
+                        btnCode.textContent = '60' + '秒后再获取';
+                        btnCode.setAttribute('disabled', 'true');
+                        var i = 59;
+                        var intervalid;
+                        intervalid = setInterval(function () {
+                            btnCode.textContent = (i + '秒再获取');
+                            if (i == 0) {
+                                btnCode.textContent = ('获取验证码');
+                                btnCode.removeAttribute('disabled');
+                                clearInterval(intervalid);
+                            }
+                            i--;
+                        }, 1000);
+                    })
+            });
+        });
+    }
+
+    function prepareConstantData(callback) {
+        var province_field = FORM.querySelector('select[name="' + Prefix+ 'province"]');
+        var country_field = FORM.querySelector('select[name="' + Prefix+ 'country"]');
+
+
+        if (province_field) {
+            //省市县联动
+            renderProvinceAndCity(province_field);
+        }
+
+        callback();
+    }
+
+    function renderProvinceAndCity(province_field) {
+        var sps = ["北京", "上海", "天津", "重庆", "香港", "澳门"];
+        var city_field = FORM.querySelector('select[name="' + Prefix+ 'city"]');
+        var county_field = FORM.querySelector('select[name="' + Prefix+ 'county"]');
+        var city_field_block;
+
+        if (city_field) {
+            Array.prototype.map.call(FORM.querySelectorAll(".field-block"), function (ele) {
+                if (ele.querySelector("select[name='" + Prefix+ "city']")) {
+                    city_field_block = ele;
+                }
+            });
+        }
+
+        //省份选择事件
+        province_field.onchange = function (e) {
+            var value = e.target.value;
+            if (city_field) {
+                city_field.options.length = 0;
+                if (sps.indexOf(value) < 0) {
+                    city_field.appendChild(STYLE.createOption('请选择城市', ''));
+                    if (city_field_block) {
+                        city_field_block.style.display = "block";
+                    }
+                } else {
+                    if (city_field_block) {
+                        city_field_block.style.display = "none";
+                    }
+                }
+
+                var cities = LOCATION.PROVINCE[value];
+                if (cities) {
+                    var alreadyAdded = false;
+                    cities.forEach(function (city) {
+                        if (city.value) {
+                            city_field.appendChild(STYLE.createOption(city.name, city.value));
+                            if (!alreadyAdded) {
+                                var cityKey = value + '_' + city.name;
+                                if (!LOCATION.PROVINCE[cityKey]) {
+                                    LOCATION.PROVINCE[cityKey] = city.area;
+                                } else {
+                                    alreadyAdded = true;
+                                }
+                            }
+                        }
+                    });
+
+                    if (DEFAULT_DATA.city) {
+                        city_field.value = DEFAULT_DATA.city;
+                        delete DEFAULT_DATA.city;
+                    }
+                }
+                city_field.onchange({target: city_field});
+            }
+        };
+
+        if (city_field) {
+            city_field.onchange = function (e) {
+                var target = e.target;
+                if (county_field) {
+                    county_field.options.length = 0;
+                    county_field.appendChild(STYLE.createOption('请选择区县', ''));
+                    var counties = LOCATION.PROVINCE[province_field.value + '_' + target.value];
+                    if (counties) {
+                        counties.forEach(function (county) {
+                            if (county.value) {
+                                // won't need this after api updated
+                                // --start
+                                if (typeof county == 'string') {
+                                    county = {name: county}
+                                }
+                                //--end
+
+                                county_field.appendChild(STYLE.createOption(county.name, county.value));
+                            }
+                        });
+
+                        if (DEFAULT_DATA.county) {
+                            county_field.value = DEFAULT_DATA.county;
+                            delete DEFAULT_DATA.county;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        getFieldValue: _getFieldValue,
+        beforeSubmit: beforeSubmit,
+        getCode: getCode,
+        preSetForm: preSetForm,
+        loadForm: function (server, formName, events, args) {
+            callBack = events.formInit;
+            beforeSubmitForm = events.beforeSubmit;
+            onSubmit = events.onSubmit;
+            fillValue = events.fillData;
+            formUuid = formName;
+            host = server;
+
+            if (args) {
+                isWechat = args.isWechat || false;
+                pageUuid = args.pageUuid;
+            }
+
+            AGENT.getHttpRequest().get(server + '/microPageAction.do?method=getForm&uuid=' + formName).then(function (result) {
+                var setting = result.jsonData;
+                render(setting);
+            });
+        }
+    };
+}();

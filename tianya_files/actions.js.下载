@@ -1,0 +1,370 @@
+//行动参数输入框的设置用于用户点击后完成参赛、订阅、加自选等相应动作
+//行动参数的配置：参赛动作“gameid:213213” 添加牛人的动作“nrdyuid:113231” 添加自选股“zixuan:SZ1234”
+function showBadRequest(msg) {
+    //显示失败 和 data.msg
+    var info = msg || 'Err: 请求失败';
+    $(window.document.body).append($(`<div class='err-request-info'>${info}</div>`));
+    var deleteErr = setTimeout(function () {
+        $('.err-request-info').remove();
+        clearTimeout(deleteErr);
+    }, 2000);
+}
+
+function entryGameActions() {
+    //去掉为空的个性标签
+    var features = $('.subscribe-user-feature .feature-item');
+    if (features && features.length > 0) {
+        for (var i = 0; i < features.length; i++) {
+            var innerHtml = features.eq(i).text().trim();
+            if (!innerHtml) {
+                features.eq(i).remove();
+            }
+        }
+    }
+
+    //去掉牛人订阅中的空描述
+    var niurenDes = $('.subscribe-user .subscribe-user-status');
+    if (niurenDes && niurenDes.length > 0) {
+        for (var i = 0; i < niurenDes.length; i++) {
+            var innerHtml = niurenDes.eq(i).text().trim();
+            if (!innerHtml) {
+                niurenDes.eq(i).remove();
+            }
+        }
+    }
+
+    //如果自选股组件，没有描述内容则...移除，并替换相关样式
+    var stocks = $('.zixuan-stock');
+    if (stocks && stocks.length > 0) {
+        for (var i = 0; i < stocks.length; i++) {
+            var innerHtml = stocks.eq(i).find('.zixuan-stock-content .zixuan-stock-status .zixuan-stock-des').text().trim();
+            if (!innerHtml) {
+                stocks.eq(i).find('.zixuan-stock-content .zixuan-stock-status').remove();
+                stocks.eq(i).find('img.bg-img').attr('src', 'https://tgf.gtja.com/f/CDN1/microPage/201907/18/016801_1563439152184.png');
+                stocks.eq(i).find('.zixuan-stock-content .zixuan-stock-info').css({
+                    'height': '41%',
+                    'top': '30%'
+                });
+            }
+            stocks.eq(i).find('.zixuan-stock-btn img').css({ height: '80%', width: 'auto' });
+        }
+    }
+
+    var userCode = getParam("yyzusercode");
+
+    //设置了参赛动作的a链接
+    var targets = $('a[data-action-param]');
+
+    //todo：遍历链接，并绑定事件
+    if (targets && targets.length > 0) {
+        console.log();
+        for (var i = 0; i < targets.length; i++) {
+            var gameIdString = targets.eq(i).attr('data-action-param').trim().replace('：', ':');
+
+            if (gameIdString) {
+                //gameid:213213 nrdyuid:113231 zixuan:SZ1234
+                var datas = gameIdString.split(':');
+                var actionKey = datas && datas.length == 2 ? datas[0] : '';
+                var actionValue = datas && datas.length == 2 ? datas[1] : '';
+                if (actionKey && actionValue) {
+                    //绑定点击事件
+                    if (actionKey == 'zixuan') {
+                        // addZixuanRequest(userCode, actionValue);
+                        //添加自选股 zixuan
+                        //gtjanrng://addMyStock?stockcode=SH600000
+
+                        //todo 通过id获取数据，渲染dom
+                        setStockData(actionValue, targets.eq(i));
+
+                        queryMyStock(actionValue, targets.eq(i));
+                        // targets.eq(i).bind('click', function addZixuanStock() {
+                        //     var thisDom = $(this);
+                        //     window.Bridge.callByJsUrl('gtjanrng://addMyStock?stockcode=' + actionValue, response => {
+                        //         if (response.error === '0') {
+                        //             //showBadRequest('自选股添加成功!');
+                        //             var originImage = thisDom.find('.zixuan-stock-btn img').attr('src');
+                        //             thisDom.find('.zixuan-stock-btn img').attr('src', originImage.replace('016801_1563507413713.png', '016801_1563507405102.png'));
+                        //             showBadRequest('添加成功!');
+                        //             thisDom.off("click");
+                        //         } else {
+                        //             showBadRequest();
+                        //         }
+                        //     })
+                        // });
+                    }
+                    if (actionKey == 'gameid') {
+                        // entryGameRequest(userCode, actionValue);
+                        //参赛动作 gameid
+                        if (userCode) {
+                            queryUserMatch(userCode, actionValue, targets.eq(i));
+                        }
+                    }
+                    if (actionKey == 'nrdyuid') {
+                        // addNiurenRequest(userCode, actionValue);
+                        //展示牛人信息
+                        queryBullUserInfo(actionValue, targets.eq(i));
+                        //添加牛人 nrdyuid
+                        if (userCode) {
+                            //查询订阅状态   如果没订阅就绑定订阅，否则显示已订阅
+                            querySubscribeUser(userCode, actionValue, targets.eq(i));
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+}
+
+//自选股查询
+function queryMyStock(stockCode, dom) {
+    window.Bridge.callByJsUrl('gtjanrng://getMyStockList', response => {
+        if (response.error === '0') {
+            console.log('getMyStockList-自选股数组-data：', response)
+            //遍历 结果， 如果已经订阅 则显示已订阅
+            if (response.data && response.data.length > 0 && response.data.indexOf(stockCode.toUpperCase()) > -1) {
+                var originImage = dom.find('.zixuan-stock-btn img').attr('src');
+                dom.find('.zixuan-stock-btn img').attr('src', originImage.replace('016801_1563507413713.png', '016801_1563507405102.png'));
+                dom.off("click");
+            } else {
+                //否则dom绑定订阅事件
+                dom.bind('click', function addZixuanStock() {
+                    var thisDom = $(this);
+                    window.Bridge.callByJsUrl('gtjanrng://addMyStock?stockcode=' + stockCode.toUpperCase(), response => {
+                        if (response.error === '0') {
+                            console.log('addMyStock-自选股-data：', response)
+                            //showBadRequest('自选股添加成功!');
+                            var originImage = thisDom.find('.zixuan-stock-btn img').attr('src');
+                            thisDom.find('.zixuan-stock-btn img').attr('src', originImage.replace('016801_1563507413713.png', '016801_1563507405102.png'));
+                            showBadRequest('添加成功!');
+                            thisDom.off("click");
+                        } else {
+                            console.error('addMyStock-自选股-error：', response);
+                            showBadRequest();
+                        }
+                    })
+                });
+            }
+
+        } else {
+            //显示err
+            dom.bind('click', function addZixuanStock() {
+                var thisDom = $(this);
+
+                window.Bridge.callByJsUrl('gtjanrng://addMyStock?stockcode=' + stockCode.toUpperCase(), response => {
+                    if (response.error === '0') {
+                        console.log('addMyStock-自选股-data：', response)
+                        //showBadRequest('自选股添加成功!');
+                        var originImage = thisDom.find('.zixuan-stock-btn img').attr('src');
+                        thisDom.find('.zixuan-stock-btn img').attr('src', originImage.replace('016801_1563507413713.png', '016801_1563507405102.png'));
+                        showBadRequest('添加成功!');
+                        thisDom.off("click");
+                    } else {
+                        console.error('addMyStock-自选股-error：', response);
+                        showBadRequest();
+                    }
+                })
+            });
+        }
+    })
+}
+
+//获取股票行情
+function setStockData(stockCode, dom) {
+    jQuery.ajax({
+        "type": "post",
+        "url": "/microPageAction.do?method=getMarketDataByStock",
+        "data": { stockCode: stockCode.toUpperCase() },
+        "dataType": "json",
+        "success": function (data, desc) {
+            if (data && data.result == '1') {
+                //股票数据
+                console.log('股票数据');
+                console.log(data);
+                var stockData = data.data;
+                if (stockData) {
+                    //更新Dom
+                    //股票名称
+                    dom.find('.zixuan-stock-name .stock-name').text(stockData.stkName);
+                    //股票代码
+                    dom.find('.zixuan-stock-name .stock-code').text(stockData.stkCode.toUpperCase());
+                    //股票价格
+                    dom.find('.zixuan-stock-price .stock-price').text(stockData.price);
+                    //股票涨幅 < 0 --> color: rgb(92, 170, 132);
+                    dom.find('.zixuan-stock-price .stock-rate').text(stockData.rise + '%');
+                    if (stockData.rise < 0) {
+                        dom.find('.zixuan-stock-price .stock-rate').css('color', 'rgb(92, 170, 132)');
+                        dom.find('.zixuan-stock-price .stock-price').css('color', 'rgb(92, 170, 132)');
+                    }
+                } else {
+                    dom.remove();
+                }
+            }
+        },
+        error: function (xhr, status, err) {
+            dom.remove();
+        },
+    });
+}
+
+//订阅查询/
+// /microPageAction.do?method=querySubscribeUser
+function querySubscribeUser(userCode, relationUserCode, dom) {
+    jQuery.ajax({
+        "type": "post",
+        "url": "/microPageAction.do?method=querySubscribeUser",
+        "data": { userCode, relationUserCode },
+        "dataType": "json",
+        "success": function (data, desc) {
+            if (data && data.result == '1' && data.responseList && data.responseList.length > 0 && data.responseList[0].TOTAIL_NUM && data.responseList[0].TOTAIL_NUM != '0') {
+                //已订阅
+                var originImage = dom.find('.subscribe-user-btn img').attr('src');
+                dom.find('.subscribe-user-btn img').attr('src', originImage.replace('016801_1564653818011.png', '016801_1564653822251.png'));
+            } else {
+                //没订阅
+                dom.bind('click', function () {
+                    var thisDom = $(this);
+                    jQuery.ajax({
+                        "type": "post",
+                        "url": "/microPageAction.do?method=subscribeUser",
+                        "data": { relationUserCode, userCode },
+                        "dataType": "json",
+                        "success": function (data, desc) {
+                            if (data && data.result == "1") {
+                                //成功-展示样式
+                                var originImage = thisDom.find('.subscribe-user-btn img').attr('src');
+                                thisDom.find('.subscribe-user-btn img').attr('src', originImage.replace('016801_1564653818011.png', '016801_1564653822251.png'));
+                                showBadRequest('订阅成功!');
+                                dom.off("click");
+                            } else {
+                                //显示失败 和 data.msg
+                                showBadRequest();
+                            }
+                        },
+                        error: function (xhr, status, err) {
+                            //显示失败 和 data.msg
+                            showBadRequest();
+                        },
+                    });
+                });
+            }
+        },
+        error: function (xhr, status, err) {
+            dom.bind('click', function () {
+                var thisDom = $(this);
+                jQuery.ajax({
+                    "type": "post",
+                    "url": "/microPageAction.do?method=subscribeUser",
+                    "data": { relationUserCode, userCode },
+                    "dataType": "json",
+                    "success": function (data, desc) {
+                        if (data && data.result == "1") {
+                            //成功-展示样式
+                            var originImage = thisDom.find('.subscribe-user-btn img').attr('src');
+                            thisDom.find('.subscribe-user-btn img').attr('src', originImage.replace('016801_1564653818011.png', '016801_1564653822251.png'));
+                            showBadRequest('订阅成功!');
+                            dom.off("click");
+                        } else {
+                            //显示失败 和 data.msg
+                            showBadRequest();
+                        }
+                    },
+                    error: function (xhr, status, err) {
+                        //显示失败 和 data.msg
+                        showBadRequest();
+                    },
+                });
+            });
+        },
+    });
+}
+
+//牛人信息查询
+function queryBullUserInfo(relationUserCode, dom) {
+    jQuery.ajax({
+        "type": "post",
+        "url": "/microPageAction.do?method=queryBullUserInfo",
+        "data": { relationUserCode },
+        "dataType": "json",
+        "success": function (data, desc) {
+            if (data && data.result == '1' && data.responseList && data.responseList.length > 0) {
+                //头像 昵称
+                if (data.responseList[0].USER_HEAD) {
+                    dom.find('.subscribe-user-name img').attr('src', data.responseList[0].USER_HEAD);
+                }
+                if (data.responseList[0].NICKNAME) {
+                    dom.find('.subscribe-user-name span').text(data.responseList[0].NICKNAME);
+                }
+            }
+        },
+        error: function (xhr, status, err) {
+
+        },
+    });
+}
+
+//比赛查询
+function queryUserMatch(userCode, gameId, dom) {
+    jQuery.ajax({
+        "type": "post",
+        "url": "/microPageAction.do?method=queryUserMatch",
+        "data": { userCode, gameId },
+        "dataType": "json",
+        "success": function (data, desc) {
+            if (data && data.result == '1' && data.responseList && data.responseList.length > 0) {
+                //已参加
+                dom.bind('click', function () {
+                    showBadRequest('已经加入该比赛了哦！');
+                });
+            } else {
+                //没参加
+                dom.bind('click', function () {
+                    jQuery.ajax({
+                        "type": "post",
+                        "url": "/microPageAction.do?method=takePartInMatch",
+                        "data": { gameId, userCode },
+                        "dataType": "json",
+                        "success": function (data, desc) {
+                            if (data && data.result == "1") {
+                                //成功
+                                showBadRequest('加入比赛成功!');
+                                dom.off("click");
+                            } else {
+                                //显示失败 和 data.msg
+                                showBadRequest(data.msg.indexOf('已经加入') > -1 ? '已经加入该比赛了哦！' : '');
+                            }
+                        },
+                        error: function (xhr, status, err) {
+                            //显示失败 和 data.msg
+                            showBadRequest();
+                        },
+                    });
+                });
+            }
+        },
+        error: function (xhr, status, err) {
+            dom.bind('click', function () {
+                jQuery.ajax({
+                    "type": "post",
+                    "url": "/microPageAction.do?method=takePartInMatch",
+                    "data": { gameId, userCode },
+                    "dataType": "json",
+                    "success": function (data, desc) {
+                        if (data && data.result == "1") {
+                            //成功
+                            showBadRequest('加入比赛成功!');
+                            dom.off("click");
+                        } else {
+                            //显示失败 和 data.msg
+                            showBadRequest(data.msg.indexOf('已经加入') > -1 ? '已经加入该比赛了哦！' : '');
+                        }
+                    },
+                    error: function (xhr, status, err) {
+                        //显示失败 和 data.msg
+                        showBadRequest();
+                    },
+                });
+            });
+        },
+    });
+}

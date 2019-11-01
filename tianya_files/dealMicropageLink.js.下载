@@ -1,0 +1,83 @@
+//获取链接中参数
+function getParamFromUrl(name, url) {
+    var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+    var searchString = url.split('?');
+    if (searchString.length < 2) return '';
+    var search = searchString[1];
+    var r = search.match(reg);
+    if (r) return decodeURI(r[2]);
+    return ''; //返回参数值
+}
+
+function replaceParamValByKey(uri, key, value) {
+    var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+    var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+    if (uri.match(re)) {
+        return uri.replace(re, '$1' + key + "=" + value + '$2');
+    }
+    else {
+        return uri + separator + key + "=" + value;
+    }
+}
+
+//微页面的按钮组件支持读取微页面链接的渠道码和活动码，可以带入到后续的H5开户流程中
+//如果链接中含有 渠道码和活动码，则不替换。以原有值为准
+function dealMicropageLink() {
+    //获取页面 渠道码和活动码 参数
+    var tgCode = getParam("tgCode");
+    var activityCode = getParam("activityCode");
+
+    //两种链接
+    var links = $('a.cl-link-untracked');
+    var links1 = $('a.cl-link-tracked');
+
+    if ((tgCode || activityCode) && links && links.length > 0) {
+        for (var i = 0; i < links.length; i++) {
+            var thisHref = links.eq(i).attr('href');
+            if (thisHref && thisHref != 'javascript://' && thisHref.indexOf(".json")<=0) {
+                thisHref = thisHref.trim();
+                var thisTgCode = getParamFromUrl('tgCode', thisHref);
+                var thisActivityCode = getParamFromUrl('activityCode', thisHref);
+                var updateFlag = false;
+
+                if (thisTgCode == '' && tgCode != '') {
+                    updateFlag = true;
+                    thisHref = replaceParamValByKey(thisHref, 'tgCode', tgCode);
+                }
+
+                if (thisActivityCode == '' && activityCode != '') {
+                    updateFlag = true;
+                    thisHref = replaceParamValByKey(thisHref, 'activityCode', activityCode);
+                }
+
+                //更新链接
+                if (updateFlag) links.eq(i).attr('href', thisHref);
+            }
+        }
+    }
+
+    if ((tgCode || activityCode) && links1 && links1.length > 0) {
+        for (var i = 0; i < links1.length; i++) {
+            var thisHref = links1.eq(i).attr('href');
+            if (thisHref && thisHref != 'javascript://' && thisHref.indexOf(".json")<=0) {
+                thisHref = thisHref.trim();
+                var thisTgCode = getParamFromUrl('tgCode', thisHref);
+                var thisActivityCode = getParamFromUrl('activityCode', thisHref);
+                var updateFlag = false;
+
+                if (thisTgCode == '' && tgCode != '') {
+                    updateFlag = true;
+                    thisHref = replaceParamValByKey(thisHref, 'tgCode', tgCode);
+                }
+
+                if (thisActivityCode == '' && activityCode != '') {
+                    updateFlag = true;
+                    thisHref = replaceParamValByKey(thisHref, 'activityCode', activityCode);
+                }
+
+                //更新链接
+                if (updateFlag) links1.eq(i).attr('href', thisHref);
+            }
+        }
+    }
+}

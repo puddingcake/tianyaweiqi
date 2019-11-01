@@ -1,0 +1,692 @@
+//标记是否分享
+var userHasShareTag = 0;
+//抽奖按钮的三种状态  1.再抽一次 2.分享再抽n次 3.确定
+var btnOnPopAgain = 3;
+//抽奖剩余次数
+var getPrizeTime = 0;
+
+function getParam(name) {
+	var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+	var r = window.location.search.substr(1).match(reg);
+	if (r) return decodeURI(r[2]);
+	return null; //返回参数值
+}
+
+function replaceParamVal(uri, key, value) {
+	var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+	var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+	if (uri.match(re)) {
+		return uri.replace(re, '$1' + key + "=" + value + '$2');
+	}
+	else {
+		return uri + separator + key + "=" + value;
+	}
+}
+
+//理财产品相关
+function loadFinancialProduct() {
+	var length = $(".financialProduct").length;
+	for (i = 0; i < length; i++) {
+		(function (i) {
+			$(".financialProduct .code").eq(i).addClass('none');
+			var prodCode = $(".financialProduct .code").eq(i).find('p').html();
+			jQuery.ajax({
+				"type": "post",
+				"url": "/microPageAction.do?method=getProductionInfoBy",
+				"data": { prodCode: prodCode },
+				"dataType": "json",
+				"success": function (data) {
+					if (data.result == "1") {
+						var record = JSON.parse(data.data);
+						if (record.length > 0) {
+							$(".financialProduct .title").eq(i).html(record[0].SHT_NAME);
+							var rate = Math.round(record[0].AUTO_RATE * 100) / 100;
+							var rateShow = '';
+							if(isNaN(rate)){
+								rateShow = record[0].AUTO_RATE;
+							}else{
+								rateShow = rate > 0 ? '+' + rate + '%' : rate + '%';
+							}
+							$(".financialProduct .rate").eq(i).html(rateShow);
+							$(".financialProduct .desc").eq(i).html(record[0].RATE_LABEL);
+							var blockdesc = '';
+							var blocktext = record[0].PROD_FEATURE_LABEL ? record[0].PROD_FEATURE_LABEL.split("，") : [];
+							for (j = 0; j < blocktext.length; j++) {
+								blockdesc += '<span>' + blocktext[j] + '</span> ';
+							}
+							$(".financialProduct .blockdesc").eq(i).append(blockdesc);
+							//判断是内嵌页还是外推页，内嵌页直接加购买链接，外推页要保留手机号后唤起君弘或者跳转到下载页面
+							var type = getParam("type");
+							//拼接url相关数据
+							var tgljUserCode = "";
+							var tgljCode = getParam("tgCode") || '';
+							var tgljActivityCode = getParam("activityCode") || '';
+							var tgljChannel = getParam("channelId") || '';
+							var tgljWorkId = "";
+							var urlBrigde = record[0].DETAIL_URL.indexOf('?') > -1 ? (record[0].DETAIL_URL[record[0].DETAIL_URL.length - 1] == '?' ? '' : '&') : '?';
+							var detailUrl = record[0].DETAIL_URL + urlBrigde + "tglj_info=tglj_userCode:" + tgljUserCode + ";tglj_Code:" + tgljCode + ";tglj_activityCode:" + tgljActivityCode
+								+ ";tglj_channel:" + tgljChannel + ";tglj_workId:" + tgljWorkId;
+
+							console.log(detailUrl)
+							var href = $(".financialProduct .layout a").eq(i).attr("href") ? $(".financialProduct .layout a").eq(i).attr("href") : detailUrl;
+							if (type == "1") {
+								//外推页，弹出留手机号弹窗,并传递内链地址和prodCode
+								var linkhtml = "<img class='buy' data-image='' src='https://dl.app.gtja.com/dzswem/microPage/201905/17/016801_1558080915024.png' alt=''" + "onClick='showRegisterFinancial(\"" + prodCode + "\"" + "," + "\"" + href + "\")'>";
+								$(".financialProduct .layout").eq(i).html(linkhtml);
+							} else {
+								//内推页，替换链接
+								$(".financialProduct .layout a").eq(i).attr("href", href);
+
+							}
+						} else {
+							$(".financialProduct").eq(i).addClass('none');
+						}
+
+					} else {
+						$(".financialProduct").eq(i).addClass('none');
+					}
+				},
+				error: function (xhr, status, err) {
+					$(".financialProduct").eq(i).addClass('none');
+				},
+			});
+		})(i);
+	}
+}
+function loadFinancialProduct2() {
+	var length = $(".financialProduct2").length;
+	for (i = 0; i < length; i++) {
+		(function (i) {
+			$(".financialProduct2 .code").eq(i).addClass('none');
+			var prodCode = $(".financialProduct2 .code").eq(i).find('p').html();
+			jQuery.ajax({
+				"type": "post",
+				"url": "/microPageAction.do?method=getProductionInfoBy",
+				"data": { prodCode: prodCode },
+				"dataType": "json",
+				"success": function (data) {
+					if (data.result == "1") {
+						var record = JSON.parse(data.data);
+						if (record.length > 0) {
+							var record = JSON.parse(data.data);
+							$(".financialProduct2 .title").eq(i).html(record[0].SHT_NAME);
+							var rate = Math.round(record[0].AUTO_RATE * 100) / 100;
+							var rateShow = '';
+							if(isNaN(rate)){
+								rateShow = record[0].AUTO_RATE;
+							}else{
+								rateShow = rate > 0 ? '+' + rate + '%' : rate + '%';
+							}
+							$(".financialProduct2 .rate").eq(i).html(rateShow);
+							$(".financialProduct2 .desc").eq(i).html(record[0].RATE_LABEL);
+							$(".financialProduct2 .ammount .first").eq(i).html(record[0].ORIGIN_MONEY);
+							$(".financialProduct2 .ammount .second").eq(i).html('元起');
+							$(".financialProduct2 .ammountdesc").eq(i).html('起投金额');
+							var blockdesc = '';
+							var blocktext = record[0].PROD_FEATURE_LABEL ? record[0].PROD_FEATURE_LABEL.split("，") : [];
+							for (j = 0; j < blocktext.length; j++) {
+								blockdesc += '<span>' + blocktext[j] + '</span> ';
+							}
+							$(".financialProduct2 .blockdesc").eq(i).append(blockdesc);
+							//判断是内嵌页还是外推页，内嵌页直接加购买链接，外推页要保留手机号后唤起君弘或者跳转到下载页面
+							var type = getParam("type");
+							//拼接url相关数据
+							var tgljUserCode = "";
+							var tgljCode = getParam("tgCode");
+							var tgljActivityCode = getParam("activityCode");
+							var tgljChannel = getParam("channelId");
+							var tgljWorkId = "";
+							var urlBrigde = record[0].DETAIL_URL.indexOf('?') > -1 ? (record[0].DETAIL_URL[record[0].DETAIL_URL.length - 1] == '?' ? '' : '&') : '?';
+							var detailUrl = record[0].DETAIL_URL + urlBrigde + "tglj_info=tglj_userCode:" + tgljUserCode + ";tglj_Code:" + tgljCode + ";tglj_activityCode:" + tgljActivityCode
+								+ ";tglj_channel:" + tgljChannel + ";tglj_workId:" + tgljWorkId;
+
+							var href = $(".financialProduct2 .layout a").eq(i).attr("href") ? $(".financialProduct2 .layout a").eq(i).attr("href") : detailUrl;
+
+							if (type == "1") {
+								//外推页，弹出留手机号弹窗
+								var linkhtml = "<img class='buy' data-image='' src='https://dl.app.gtja.com/dzswem/microPage/201905/17/016801_1558080915024.png' alt=''" + "onClick='showRegisterFinancial(\"" + prodCode + "\"" + "," + "\"" + href + "\")'>";
+								$(".financialProduct2 .layout").eq(i).html(linkhtml);
+							} else {
+								//内推页，替换链接
+								$(".financialProduct2 .layout a").eq(i).attr("href", href);
+
+							}
+						} else {
+							$(".financialProduct2").eq(i).addClass('none');
+						}
+					} else {
+						$(".financialProduct2").eq(i).addClass('none');
+					}
+				},
+				error: function (xhr, status, err) {
+					$(".financialProduct2").eq(i).addClass('none');
+				},
+			});
+		})(i);
+	}
+}
+
+//method=giftCountQuery
+//8 礼品次数查询，抽奖次数查询
+function giftCountQuery() {
+	var userCode = getParam("yyzusercode");
+	var activityCode = getParam("activityCode");
+
+	if(!userCode || !activityCode){
+		return;
+	}
+
+	jQuery.ajax({
+		"type": "post",
+		"url": "/microPageAction.do?method=giftCountQuery",
+		"data": { userCode: userCode, activityCode: activityCode },
+		"dataType": "json",
+		"success": function (data, desc) {
+			if (data && data.result == "1") {
+				//var record = JSON.parse(data.responseList);
+				var record = data.responseList;
+				//成功 显示次数
+				//userHasShareTag 标记用户是否分享
+				//if  userHasShareTag && TOTAL_NUM = 0 明天再来抽奖吧
+				//else  TOTAL_NUM > 0 显示抽奖次数; 显示分享再抽n次
+				if (record && record.length > 0 && record[0].TOTAL_NUM != '') {
+					getPrizeTime = parseInt(record[0].TOTAL_NUM);
+
+					//更新抽奖状态
+					showPrizeTimeStatus();
+				}
+
+			} else {
+				//显示失败
+				showPrizeTimeStatus();
+			}
+		},
+		error: function (xhr, status, err) {
+			//显示出错
+
+		},
+	});
+}
+
+function shareQuery() {
+	var userCode = getParam("yyzusercode");
+	var activityCode = getParam("activityCode");
+
+	jQuery.ajax({
+		"type": "post",
+		"url": "/microPageAction.do?method=shareQuery",
+		"data": { userCode: userCode, activityCode: activityCode },
+		"dataType": "json",
+		"success": function (data, desc) {
+			if (data && data.result == "1") {
+				//var record = JSON.parse(data.responseList);
+				var record = data.responseList;
+				//成功 首次分享，将userHasShareTag=1
+				if (record && record.length > 0) {
+					userHasShareTag = 1;
+				}
+
+			}
+		},
+		error: function (xhr, status, err) {
+			//显示出错
+
+		},
+	});
+}
+
+// 进入时调用 -> 用户事件跟踪登记，增加抽奖次数
+function loadFinancialLottery() {
+	console.log('抽奖组件: 进入页面调用');
+	var userCode = getParam("yyzusercode");
+	var activityCode = getParam("activityCode");
+
+	if(!userCode || !activityCode){
+		return;
+	}
+
+	shareQuery();
+
+	jQuery.ajax({
+		"type": "post",
+		"url": "/microPageAction.do?method=userEventRecord",
+		//"data": {markType:"0003",userCode:userCode,activityCode:activityCode},
+		"data": { userCode: userCode, activityCode: activityCode },
+		"dataType": "json",
+		"success": function (data, desc) {
+			if (data && data.result == "1") {
+				//成功 不用做处理
+				console.log('成功: userEventRecord');
+				console.log(data.responseList);
+				//查询抽奖次数
+				giftCountQuery();
+			} else {
+				//显示失败
+				console.log('失败: userEventRecord');
+				//查询抽奖次数
+				giftCountQuery();
+			}
+		},
+		error: function (xhr, status, err) {
+			//显示出错
+			//查询抽奖次数
+			giftCountQuery();
+		},
+	});
+}
+
+//显示弹框中的抽奖状态
+function showPrizeTimeStatus() {
+	//三种按钮 1.再抽一次 2.分享再抽 3.确定--->关闭窗口
+	if (userHasShareTag && getPrizeTime == 0) {
+		//切换为 -- >3：确定按钮
+		$('#btn-pop-again').text('确定');
+		$('#btn-pop-again-none').text('确定');
+		btnOnPopAgain = 3;
+
+		$('.financialLotteryprizeTime').text('明天再来抽奖吧!');
+	} else {
+		//显示抽奖次数
+		$('.financialLotteryprizeTime').text('剩余抽奖次数: ' + getPrizeTime + '次');
+		if (getPrizeTime == 0) {
+			//切换为 -- >2：分享再抽按钮
+			//todo 获取次数
+			var n = 1;
+			$('#btn-pop-again').text('分享获得抽奖机会');
+			$('#btn-pop-again-none').text('分享获得抽奖机会');
+			btnOnPopAgain = 2;
+		} else {
+			//todo 切换为 -- >1：再抽一次按钮
+			$('#btn-pop-again').text('再抽一次');
+			$('#btn-pop-again-none').text('再抽一次');
+			btnOnPopAgain = 1;
+		}
+	}
+}
+
+//抽奖方法
+function prizeDraw() {
+	var userCode = getParam("yyzusercode");
+	var activityCode = getParam("activityCode");
+	var poolId = getParam("poolId");
+	//判断是内嵌页还是外推页，外推页直接弹窗，内嵌页抽奖
+	var type = getParam("type");
+	if (type == "1") {
+		//外推页，唤起君弘+弹出留手机号弹窗
+
+		var locationLink = encodeURI(replaceParamVal(window.location.href, 'type', '2'));
+
+		showRegisterFinancial('', locationLink);
+	} else {
+		//内推页，抽奖
+		jQuery.ajax({
+			"type": "post",
+			"url": "/microPageAction.do?method=drawPrize",
+			"data": { poolId: poolId, userCode: userCode, activityCode: activityCode },
+			"dataType": "json",
+			"success": function (data, desc) {
+				if (data && data.result == "1") {
+					//成功 - 查询抽奖次数并显示
+					if (getPrizeTime && getPrizeTime >= 1) {
+						getPrizeTime = getPrizeTime - 1;
+					}
+
+					//显示状态
+					//showPrizeTimeStatus();
+
+					//查询次数， 更新Dom
+					giftCountQuery();
+
+					//var record = JSON.parse(data.responseList);
+					var record = data.responseList;
+					if (record && record.length && record[0].WALLET_CODE && record[0].WALLET_NAME != '谢谢惠顾') {
+						//显示抽奖结果
+						var showName = '';
+						if (record[0].WALLET_CODE == 'JYB') {
+							showName = record[0].WALLET_NUM + '个君元宝';
+						} else {
+							showName = record[0].WALLET_NAME + record[0].WALLET_NUM + '张'
+						}
+
+						//获奖感言字段
+						if(record[0].WIN_DRAW_DOC){
+							showName = record[0].WIN_DRAW_DOC;
+						}
+
+						$(".financialLotteryprize").removeClass('none');
+						$(".financialLotteryprize .content .sub .text").text(showName);
+					} else {
+						//显示没抽到
+						$(".financialLotterynoprize").removeClass('none');
+					}
+				} else {
+					//显示失败 和 data.msg
+					showPrizeTimeStatus();
+
+					$(".financialLotterynoprize").removeClass('none');
+				}
+			},
+			error: function (xhr, status, err) {
+
+			},
+		});
+
+	}
+}
+
+//btn-pop-again
+$(document).on('click', '.financialLotteryprize .btn', function () {
+	//三种按钮 btnOnPopAgain = 1.再抽一次 2.分享再抽 3.确定--->关闭窗口
+	if (btnOnPopAgain == 1) {
+		console.log(btnOnPopAgain);
+		//alert('调用抽奖');
+		//调用抽奖
+		prizeDraw();
+	}
+
+	if (btnOnPopAgain == 2) {
+		console.log(btnOnPopAgain);
+		//alert('调用分享');
+		//唤起君弘分享
+		shareActivity();
+	}
+
+	//关闭窗口
+	$(".financialLotteryprize").addClass("none");
+	$(".financialLotteryprize .text").html("");
+});
+
+//btn-pop-again-none
+$(document).on('click', '.financialLotterynoprize .btn', function () {
+	//三种按钮 btnOnPopAgain = 1.再抽一次 2.分享再抽 3.确定--->关闭窗口
+	if (btnOnPopAgain == 1) {
+		console.log(btnOnPopAgain);
+		//调用抽奖
+		prizeDraw();
+	}
+
+	if (btnOnPopAgain == 2) {
+		console.log(btnOnPopAgain);
+
+		//唤起君弘分享
+		shareActivity();
+	}
+
+	//关闭窗口
+	$(".financialLotterynoprize").addClass("none");
+});
+
+//点击抽奖
+$(document).on('click', '#financialLottery', prizeDraw);
+
+//有奖品和无奖品 弹窗关闭按钮
+$(document).on('click', '.financialLotteryprize .close', function () {
+	$(".financialLotteryprize").addClass("none");
+	$(".financialLotteryprize .text").html("");
+});
+$(document).on('click', '.financialLotterynoprize .close', function () {
+	$(".financialLotterynoprize").addClass("none");
+});
+
+//shareAdress shareTarget 用户分享
+function shareActivity() {
+	//入参
+	var userCode = getParam("yyzusercode");
+	var activityCode = getParam("activityCode");
+	//将type改成1，标识分享的为外链
+	var locationLink = encodeURI(window.location.href);
+
+	jQuery.ajax({
+		"type": "post",
+		"url": "/microPageAction.do?method=shareManage",
+		"data": { userCode: userCode, activityCode: activityCode, shareAdress: locationLink, shareTarget: '5' },
+		"dataType": "json",
+		"success": function (data, desc) {
+			if (data && data.result == '1') {
+				//分享tag打成1
+				userHasShareTag = 1;
+
+				//查询次数， 更新Dom
+				giftCountQuery();
+			}
+		},
+		error: function (xhr, status, err) {
+
+		},
+	});
+
+	//唤起君弘分享功能
+	var shareTitle = document.title;
+	var shareContent = '极速行情、精选资讯、专业投顾，国泰君安君弘一手掌握。';
+	var shareLink = 'gtjayyznormal://yyzShare?title=' + shareTitle + '&content=' + shareContent + '&moments=title&linkurl=' + locationLink;
+
+	window.open(shareLink);
+}
+
+//分享按钮  $(document).on('click', '.financialLotteryshare .btn', shareActivity);
+
+//弹窗--留手机号
+function showRegisterFinancial(prodCode, href) {
+	//移除多余的手机号弹窗
+	if ($(".registerfinancial").length > 1) {
+		for (i = 1; i < $(".registerfinancial").length; i++) {
+			$(".registerfinancial").eq(i).remove();
+		}
+	}
+	//移出多余微信遮罩
+	if ($('.zhezhaofinancial').length > 1) {
+		for (i = 1; i < $(".zhezhaofinancial").length; i++) {
+			$(".zhezhaofinancial").eq(i).remove();
+		}
+	}
+
+	var timeout = 2000;
+	//判断是微信浏览器还是其他浏览器，如果是微信弹遮罩，如果是其他浏览器，弹窗和唤起同时进行
+	if (GetMobelTypeFinancial().weixin) {
+		$("#zhezhaoFinancial").removeClass("none");
+	} else {
+		var startTime = Date.now();
+		
+		window.location.href = "gtjayyzplus://jumpfunc?islogin=1&needusercode=1&funid=10018&needShare=1&linkurl=" + href; //唤起协议
+		//"gtjayyzplus://jumpfunc?funid=30007&index=hq"
+		//window.location.href = "gtjayyzplus://jumpfunc?funid=10018&linkurl=" + href; //唤起协议
+
+		setTimeout(function () {
+			var endTime = Date.now();
+			refreshCaptchaFinancial();
+			$("#RegisterFinancial").removeClass("none");
+			$("#RegisterFinancial").attr("prodCode", prodCode);
+			$("#RegisterFinancial").attr("href", href);
+		}, timeout);
+	}
+
+}
+$(document).on('click', '#RegisterFinancialClose', function () {
+	closeFinancialRegister();
+});
+var timerFinancial = null;
+$(document).on('click', '#yzmFinancial', function () {
+	if ($(this).hasClass("active")) {
+		var mobile = $("#mobileFinancial").val();
+		var imgCode = $("#imgCodeIdFinancial").val();
+		var errorMsg = checkMobileFinancial(mobile);
+
+		if (errorMsg == "") {
+			errorMsg = checkPicCodeFinancial(imgCode);
+		}
+		if (errorMsg != "") {
+			$("#errorMsgFinancial").text(errorMsg);
+		} else {
+			jQuery.ajax({
+				"type": "post",
+				"url": "/m/yyzTg.do?method=sendMessageCodeRegAppTg",
+				"data": { mobile: mobile, imgCode: imgCode },
+				"dataType": "json",
+				"success": function (data, desc) {
+					if (data.result == "1") {//发送验证码成功
+						$("#yzmFinancial").removeClass("active");
+						var count = 60;
+						timerFinancial = setInterval(function () {
+							$("#yzmFinancial").html("重新发送" + count + "s");
+							count--;
+							if (count <= 0) {
+								clearInterval(timerFinancial);
+								$("#yzmFinancial").html("发送验证码");
+								count = 60;
+								$("#yzmFinancial").addClass("active");
+							}
+						}, 1000);
+
+						$("#errorMsgFinancial").text("");
+					} else {
+						refreshCaptchaFinancial();
+						$("#errorMsgFinancial").text(data.msg);
+					}
+				},
+				error: function (xhr, status, err) {
+					$("#errorMsgFinancial").text("请求错误！");
+				},
+			});
+		}
+
+	}
+});
+$(document).on('click', '#confirmbtnFinancial', function () {
+	var mobile = $("#mobileFinancial").val();
+	var imgCode = $("#imgCodeIdFinancial").val();
+	var messageCode = $("#verifyCodeFinancial").val();
+	var errorMsg = checkMobileFinancial(mobile);
+	if (errorMsg == "") {
+		errorMsg = checkPicCodeFinancial(imgCode);
+	}
+	if (errorMsg == "") {
+		errorMsg = messageCode ? '' : '请输入短信验证码';
+	}
+	if (errorMsg != "") {
+		$("#errorMsgFinancial").text(errorMsg);
+	} else {
+		var channelId = getParam("channelId");
+		var materialId = getParam("activityCode");
+		var tgCode = getParam("tgCode");
+		var prodCode = $("#RegisterFinancial").attr("prodCode");
+		var href = $("#RegisterFinancial").attr("href");
+		var tgFlag = 1;
+		if (!prodCode) {
+			tgFlag = "";
+		}
+		jQuery.ajax({
+			"type": "post",
+			"url": "/microPageAction.do?method=saveCommonTgqdInfo",
+			"data": {
+				mobile: mobile, messageCode: messageCode, channelId: channelId, materialType: 1,
+				materialId: materialId, tgFlag: tgFlag, prodCode: prodCode, tgCode: tgCode
+			},
+			"dataType": "json",
+			"async": false,//用异步的话部分ios的safari浏览器跳转不到appstore
+			"success": function (data, desc) {
+				if (data.result == 1) {
+					jumpFinancial(href);
+				} else {
+					$("#errorMsgFinancial").text(data.msg);
+				}
+			},
+			error: function (xhr, status, err) {
+				$("#errorMsgFinancial").text("请求错误！");
+			},
+		});
+	}
+
+});
+function checkMobileFinancial(moile) {
+	var errorMsg = "";
+	if (moile) {
+		if (!vildMobile(moile)) {
+			//提示手机输入手机号码!
+			errorMsg = "请输入正确格式的手机号";
+		} else {
+			errorMsg = "";
+		}
+	} else {
+		errorMsg = "请填写手机号";
+	}
+	return errorMsg;
+}
+function checkPicCodeFinancial(verifyCode) {
+	if (!verifyCode) {
+		return ("请输入图片验证码");
+	} else {
+		if (!isVerifyCode(verifyCode)) {
+			return ("请输入正确的图片验证码");
+		} else {
+			return "";
+		}
+	}
+}
+function closeFinancialRegister() {
+	$("#RegisterFinancial").addClass("none");
+	$("#mobileFinancial").val("");
+	$("#imgCodeIdFinancial").val("");
+	$("#verifyCodeFinancial").val("");
+	$("#captchaImageFinancial").attr("src", '');
+	$("#errorMsgFinancial").text("");
+	$("#RegisterFinancial").attr("prodCode", "");
+	clearInterval(timerFinancial);
+	$("#yzmFinancial").html("发送验证码");
+	$("#yzmFinancial").addClass("active");
+}
+function refreshCaptchaFinancial() {
+	$('#captchaImageFinancial').attr('src', '/m/verifyCodeImageLCDT.jsp?r=' + Math.random());
+}
+function jumpFinancial(href) {
+	// 安卓
+	if (GetMobelTypeFinancial().android) {
+		// 安卓
+		getAndroidVersionFinancial();
+	} else {
+		// ios
+		window.location.href = 'https://itunes.apple.com/us/app/id952047557?l=zh&ls=1&mt=8';
+	}
+
+}
+
+
+function getAndroidVersionFinancial() {
+	$.ajax({
+		type: "get",
+		url: "http://dl.app.gtja.com/package/yyz/android/normal/version.json",
+		dataType: "jsonp",
+		jsonpCallback: "cb",
+		success: function (json) {
+			var data = json.replace(/[\r\n\s]/g, '');
+			data = JSON.parse(data);
+			var url = data.currentInfo.downloadUrl;
+			window.location.href = url;
+		},
+	});
+}
+function GetMobelTypeFinancial() {
+	var browser = {
+		versions: function () {
+			var u = window.navigator.userAgent;
+			return {
+				trident: u.indexOf('Trident') > -1, //IE内核
+				presto: u.indexOf('Presto') > -1, //opera内核
+				Alipay: u.indexOf('Alipay') > -1, //支付宝
+				webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+				gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+				mobile: !!u.match(/AppleWebKit.*Mobile.*/), //是否为移动终端
+				ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+				android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+				iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者安卓QQ浏览器
+				//iPhone: u.match(/iphone|ipod|ipad/),//
+				iPad: u.indexOf('iPad') > -1, //是否为iPad
+				webApp: u.indexOf('Safari') == -1, //是否为web应用程序，没有头部与底部
+				weixin: u.indexOf('MicroMessenger') > -1, //是否为微信浏览器
+				qq: u.match(/\sQQ/i) !== null, //是否QQ
+				Safari: u.indexOf('Safari') > -1,
+				///Safari浏览器,
+			};
+		}()
+	};
+	return browser.versions;
+}

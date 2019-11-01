@@ -1,0 +1,38 @@
+function getParam(name) {
+    var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+    var r = window.location.search.substr(1).match(reg);
+    if (r) return decodeURI(r[2]);
+    return null; //返回参数值
+}
+
+//if tgcode, get info & 更新员工个人信息组件
+function loadStaffInfo(){
+    var tgCode = getParam('tgCode');
+
+    //获取接口数据，展示组件
+    if (tgCode) {
+        //getInfoByTgcode
+        jQuery.ajax({
+			"type": "post",
+			"url": "/microPageAction.do?method=getUserInfoByTgCode",
+			"data": {tgCode: tgCode},
+			"dataType":"json",
+			"success":function(data, desc){
+                if(data.result=="1"){
+                    $('.staff-content .staff-name').text(data.realName);
+                    $('.staff-content .staff-card-number span').text(data.certificateNo);
+
+                    $('#staff-info-component').css('display', 'flex');
+                }
+			},
+		    error:function(xhr, status, err){
+                $('#staff-info-component').addClass('none');
+            },
+		});	
+
+        
+    } else {
+        //不显示组件
+        $('.staff-info').addClass('none');
+    }
+}

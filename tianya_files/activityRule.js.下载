@@ -1,0 +1,199 @@
+//Dom加载完成，隐藏活动规则弹窗 + 领券组件绑定事件
+
+var cardCodeStatus = {};
+
+function hideRules() {
+	if ($('.rule-container')) {
+		//取消可配置状态
+		$('.rule-container').css('position', 'fixed');
+		//隐藏弹框
+		$('.rule-container').css('display', 'none');
+		//弹窗关闭按钮显示
+		$('.rule-container .rule-close').css('display', 'block');
+	}
+}
+
+//活动规则
+$(document).on('click', '.tap-rule', function () {
+	$('.rule-container').css('display', 'flex');
+});
+
+$(document).on('click', '.rule-container .rule-close', function () {
+	$('.rule-container').css('display', 'none');
+});
+
+//领券弹窗关闭
+function closeTicketPop() {
+	$('.card-ticket-pop .pop-content .pop-title').text('');
+	$('.card-ticket-pop .pop-content .pop-intro').text('');
+
+	$('.card-ticket-pop').addClass('none');
+}
+
+//查询领券状态
+function queryWalletWater() {
+	var userCode = getParam("yyzusercode");
+	var activityCode = getParam("activityCode");
+	var type = getParam("type");
+
+	//处理领券组件 可能有多个
+	var cardCodes = [];
+	if ($('.card-ticket-container') && $('.card-ticket-container').length > 0) {
+		for (var i = 0; i < $('.card-ticket-container').length; i++) {
+			var thisCode = $('.card-ticket-container')[i].getAttribute('data-cardcode');
+			if (thisCode) {
+				cardCodes.push(thisCode);
+			}
+		}
+	}
+
+	//$('.card-ticket-container')[0].getAttribute('data-cardcode')
+
+	if (!userCode || !activityCode || type != '2' || cardCodes.length < 1) {
+		console.log('缺少参数');
+		return;
+	} else {
+		for (var j = 0; j < cardCodes.length; j++) {
+			var cardCode = cardCodes[j];
+			jQuery.ajax({
+				"type": "post",
+				"url": "/microPageAction.do?method=queryWalletWater",
+				"data": { userCode, activityCode, cardCode: cardCode },
+				"dataType": "json",
+				"success": function (data, desc) {
+					if (data && data.result == "1" && data.responseList) {
+						cardCodeStatus[cardCode] = true;
+					}
+				}
+			});
+		}
+	}
+}
+
+//领券组件相关 -- 参数传递等153
+$(document).on('click', '.card-ticket-container', function () {
+	//判断是内嵌页还是外推页，外推页直接弹窗，内嵌页领券
+	var type = getParam("type");
+	if (type == "1") {
+		//外推页，唤起君弘+弹出留手机号弹窗
+		locationLink = encodeURI(replaceParamVal(window.location.href, 'type', '2'));
+
+		showRegisterFinancial('', locationLink);
+	} else if (type == '2') {
+		var userCode = getParam("yyzusercode");
+		var activityCode = getParam("activityCode");
+		var cardCode = $(this).attr('data-cardcode') || $(this).parent().attr('data-cardcode');
+		var cardName = $(this).attr('data-cardname') || $(this).parent().attr('data-cardname');
+
+		if (!userCode || !activityCode || !cardCode) {
+			console.log('缺少参数');
+			return;
+		}
+
+		//领券状态查询 cardCodeStatus[cardCodes[i]] = true
+		if (cardCodeStatus && cardCodeStatus[cardCode]) {
+			$('.card-ticket-pop .pop-content .pop-title').text('');
+			$('.card-ticket-pop .pop-content .pop-intro').text('您已经领过啦');
+			//弹框提示
+			$('.card-ticket-pop').removeClass('none');
+
+			return;
+		}
+
+		//内推页，领券  入参：userCode activityCode cardCode 接口出错就是result=0，展示下msg的值
+		//没出错：result=1, 值在 responseList里面
+		jQuery.ajax({
+			"type": "post",
+			"url": "/microPageAction.do?method=getCard",
+			"data": { userCode, activityCode, cardCode },
+			"dataType": "json",
+			"success": function (data, desc) {
+				if (data.result == '1') {
+					//显示券数据
+					$('.card-ticket-pop .pop-content .pop-title').text('恭喜获得');
+					$('.card-ticket-pop .pop-content .pop-intro').text(cardName || '优惠券一张');
+					//弹框提示
+					$('.card-ticket-pop').removeClass('none');
+
+					//领取状态为true
+					cardCodeStatus[cardCode] = true;
+				} else {
+					$('.card-ticket-pop .pop-content .pop-title').text('非常抱歉');
+					$('.card-ticket-pop .pop-content .pop-intro').text('领取失败');
+					//弹框提示
+					$('.card-ticket-pop').removeClass('none');
+				}
+			},
+			error: function (xhr, status, err) {
+				$('.card-ticket-pop .pop-content .pop-title').text('非常抱歉');
+				$('.card-ticket-pop .pop-content .pop-intro').text('领取失败');
+				//弹框提示
+				$('.card-ticket-pop').removeClass('none');
+			},
+		});
+
+	}
+});
+
+$(document).on('click', '.card-ticket-pop .pop-close', closeTicketPop);
+$(document).on('click', '.card-ticket-pop .btn-again', closeTicketPop);
+
+//更多定投基金 文字链
+//外推页面点击这个文字链就弹出留手机号+唤起君弘逻辑
+$(document).on('click', '#more-products', function (e) {
+	var type = getParam("type");
+
+	if (type == "1") {
+		//外推页，弹出留手机号弹窗   内推页，则直接跳转，不需要处理
+		var locationLink = encodeURI(replaceParamVal(window.location.href, 'type', '2'));
+
+		showRegisterFinancial('', locationLink);
+
+		if (e && e.preventDefault) {
+			//阻止链接跳转
+			e.preventDefault();
+		} else {
+			//IE中阻止的方式 
+			window.event.returnValue = false;
+			return false;
+		}
+	}
+});
+
+//移除多余弹框
+function removeExtraDom() {
+	//移除多余的手机号弹窗
+	if ($(".registerfinancial").length > 1) {
+		for (; $(".registerfinancial").length > 1;) {
+			$(".registerfinancial").eq(1).remove();
+		}
+	}
+	//移出多余微信遮罩
+	if ($('.zhezhaofinancial').length > 1) {
+		for (; $(".zhezhaofinancial").length > 1;) {
+			$(".zhezhaofinancial").eq(1).remove();
+		}
+	}
+
+	//移除多余的领券弹窗
+	if ($(".card-ticket-pop").length > 1) {
+		for (; $(".card-ticket-pop").length > 1;) {
+			$(".card-ticket-pop").eq(1).remove();
+		}
+	}
+
+	//热区的位置，top值换算
+	if ($('a.hot-area-link').length > 0) {
+		var hotAreas = $('a.hot-area-link');
+		for(var i=0; i < hotAreas.length; i++){
+			var originWidth = hotAreas.eq(i).attr('data-width');
+			var thisWidth = hotAreas.eq(i).width();
+			var originTop = hotAreas.eq(i).css('top');
+			//设置top值
+			var thisTop = parseInt(originTop)*thisWidth/parseInt(originWidth);
+			console.log('设置top');
+			console.log(thisTop);
+			hotAreas.eq(i).css('top', thisTop);
+		}
+	}
+}
